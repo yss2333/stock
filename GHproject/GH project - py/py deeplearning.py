@@ -6,6 +6,7 @@ from keras.layers import LSTM, Dropout, Dense, Activation # from keras.callbacks
 import datetime
 
 
+
 data = pd.read_csv('data/stock data.csv')
 data.head()
 
