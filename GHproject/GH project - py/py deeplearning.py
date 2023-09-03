@@ -75,3 +75,7 @@ ax.plot(y_test, label='True')
 ax.plot(pred, label='Prediction')
 ax.legend()
 plt.show()
+
+ # 평균절대값백분율오차계산 (MAPE)
+
+print( np.sum(abs(y_test-pred)/y_test) / len(x_test) )
