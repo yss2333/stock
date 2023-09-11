@@ -22,7 +22,8 @@ sequence_length = seq_len + 1
 result = []
 for index in range(len(mid_prices) - sequence_length):
     result.append(mid_prices[index: index + sequence_length])
-    
+
+mid_prices 
 
 # Normalize Data
 normalized_data = []
