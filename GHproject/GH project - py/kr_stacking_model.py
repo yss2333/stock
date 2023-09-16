@@ -95,9 +95,9 @@ print(df_sorted)
 def calculate_mse(real, pred):
     return mean_squared_error(real, pred)
 
-mse_stock = calculate_mse(df_sorted['Real Price'], df_sorted['Stock_Pred'])
+mse_stock = calculate_ms(e(df_sorted['Real Price'], df_sorted['Stock_Pred'])
 mse_fs = calculate_mse(df_sorted['Real Price'], df_sorted['FS_Pred'])
-mse_final = calculate_mse(df_sorted['Real Price'], df_sorted['Final_Pred'])
+mse_final = calculate_msedf_sorted['Real Price'], df_sorted['Final_Pred'])
 
 result_table = pd.DataFrame({
     'Prediction Type': ['Stock_Pred', 'FS_Pred', 'Final_Pred'],

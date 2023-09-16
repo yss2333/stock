@@ -11,7 +11,7 @@ df_krx = fdr.StockListing('KRX')
 df = fdr.DataReader('005930','2020-01-02', '2023-09-08') # df = fdr.DataReader('종목코드','시작일자','종료일자')
 print(df)
 
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/data/stock data.csv'  # 파일 저장 경로 설정
+save_path = 'C:\\Users\\yss06\\Desktop\\retire\\dd'  # 파일 저장 경로 설정
 df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장
 
 
