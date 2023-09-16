@@ -8,7 +8,7 @@ today = datetime.today().strftime('%Y-%m-%d') # 현재 날짜 가져오기
 
 df_krx = fdr.StockListing('KRX')
 
-df = fdr.DataReader('005930','2020-01-02', today) # df = fdr.DataReader('종목코드','시작일자','종료일자')
+df = fdr.DataReader('005930','2020-01-02', '2023-09-08') # df = fdr.DataReader('종목코드','시작일자','종료일자')
 print(df)
 
 save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/data/stock data.csv'  # 파일 저장 경로 설정
@@ -19,7 +19,7 @@ df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장
 
 from pykrx import stock
 
-df2 = stock.get_market_fundamental_by_date("20200102", today, "005930")
+df2 = stock.get_market_fundamental_by_date("20200102", '20230908', "005930")
 print(df2)
 
 save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/data/fs data.csv'  # 파일 저장 경로 설정
@@ -43,3 +43,32 @@ print(merged_data)
 
 save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/data/full data.csv'  # 파일 저장 경로 설정
 merged_data.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장
+
+
+######################################################## New Stock Data #############################################################################
+import yfinance as yf
+from datetime import datetime
+
+today = datetime.today().strftime('%Y-%m-%d') # 현재 날짜 가져오기
+
+df = yf.download('AAPL',start = '2020-01-02', end = today)
+
+save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/data/new_stock data.csv'  # 파일 저장 경로 설정
+df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장
+##############################################################################################################################
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+
+# investing.com 의 뉴스기사 URL
+news_url = 'https://www.investing.com/news/stock-market-news/arm-shares-open-at-5610-a-share-topping-ipo-price-3174614'
+
+# Chrome driver 설정: 본인의 Chrome버전에 맞는 크롬드라이버가 설치되어있어야함.
+driver = webdriver.Chrome()
+
+# URL 요청
+driver.get(news_url)
+
+# aritivlePage는 신문기사의 본문
+article_page = driver.find_element(By.CLASS_NAME, 'articlePage')
+
+print(article_page.text)

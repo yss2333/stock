@@ -142,6 +142,7 @@ results = []
 
 # 각 윈도우 사이즈별 예측 결과를 저장하기 위한 리스트
 predictions = []
+window_sizes = [10, 20, 30, 40, 50, 60]
 
 for window_size in window_sizes:
     # 데이터 생성
