@@ -1,5 +1,4 @@
 # pip install ta
-
 import pandas as pd
 import ta
 import plotly.graph_objects as go

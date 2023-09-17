@@ -94,7 +94,7 @@ x_train = X[0:split]
 y_train = Y[0:split]
 
 x_test = X[split:]
-y_test = Y[split:]
+y_test = Y[split:] 
 
 print(x_train.shape, y_train.shape) # (691, 50, 6) (691, 1)
 print(x_test.shape, y_test.shape) # (173, 50, 6) (173, 1)

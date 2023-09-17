@@ -113,7 +113,7 @@ scale_cols = ['Open', 'High', 'Low', 'Close', 'Volume', 'Change', 'MA5', 'MA15',
 scaled_df = scaler.fit_transform(df[scale_cols])
 scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
 
-print(scaled_df)
+len(scaled_df)
 
 # Define Input Parameter: feature, label => numpy type
 def make_sequene_dataset(feature, label, window_size):

@@ -16,7 +16,7 @@ df = pd.merge(df1[['Date', 'Real Price', 'Predicted Price']],
                      suffixes=('_stock', '_fs'))
 
 df.columns = ['Date', 'Real Price', 'Stock_Pred', 'FS_Pred'] # Rename Column
-df
+len(df)
 
 # MinMax
 scaler = MinMaxScaler()
@@ -89,7 +89,7 @@ plt.show()
 date_val_idx = date_val.index # 검증 데이터셋의 인덱스 구하기
 df_sorted = df.loc[date_val_idx].sort_values(by='Date') # 해당 인덱스 위치에 예측값 추가
 
-print(df_sorted)
+len(df_sorted)
 
 ##################################################################### 정확도 평가 ##################################################################### 
 def calculate_mse(real, pred):
