@@ -33,7 +33,7 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 ## 일반적으로 날짜 포함 7개의 칼럼 존재 -> 예측 정확도 상승을 위해 5MA, 10MA 등 이평선 추가
 
 # Load data
-df = pd.read_csv('C:\\Users\\yss06\\Desktop\\python\\stock\\GHproject\\GH project - py\\sejun\\econ_df.csv')
+df = pd.read_csv(r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\sejun.csv')
 # Add MA 
 
 # df['MA5'] = df['Close'].rolling(window=5).mean()  # 5일 이평선 추가
@@ -109,7 +109,7 @@ df.isnull().sum() # Now all missing value is dropped
 
 # Normalization (Date 제외한 모든 수치부분 정규화) - 목적: Gradient Boosting, 시간 단축, 예측력 향상
 scaler = MinMaxScaler()
-scale_cols = ['Adj Close', 'Volume', 'USD_KRX_close', '5-year', '10-year', '20-year', 'T10Y2Y', 'VIXCLS']
+scale_cols = ['Adj Close', 'Volume', 'DJI Adj Close', 'DJI Volume', 'NDAQ Adj Close', 'NDAQ Volume', 'SPX Adj Close', 'SPX Volume','RUT Adj Close','RUT Volume']
 scaled_df = scaler.fit_transform(df[scale_cols])
 scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
 
@@ -130,7 +130,7 @@ def make_sequence_dataset(feature, label, window_size):
 
 
 # feature_df, label_df 생성
-feature_cols = ['Adj Close', 'Volume', 'USD_KRX_close', '5-year', '10-year', '20-year', 'T10Y2Y', 'VIXCLS']
+feature_cols = ['Adj Close', 'Volume', 'DJI Adj Close', 'DJI Volume', 'NDAQ Adj Close', 'NDAQ Volume', 'SPX Adj Close', 'SPX Volume','RUT Adj Close','RUT Volume']
 label_cols = [ 'Adj Close' ]
 
 feature_df = pd.DataFrame(scaled_df, columns=feature_cols)
@@ -193,7 +193,7 @@ model.fit(x_train, y_train, validation_data=(x_test, y_test),epochs=100, batch_s
 pred = model.predict(x_test)
 
 plt.figure(figsize=(12, 6))
-plt.title('3MA + 5MA + Close, window_size=40')
+plt.title('미국 3대 지수')
 plt.ylabel('Close')
 plt.xlabel('period')
 plt.plot(y_test, label='actual')
@@ -214,4 +214,5 @@ metrics_df = pd.DataFrame({
     'Values': [mape, mae, rmse]})
 
 print(metrics_df)
+
 

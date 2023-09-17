@@ -14,7 +14,7 @@
 # Make sure that you have all these libaries available to run the code successfully
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
+import FinanceDataReader as fdr
 from pandas_datareader import data
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -104,8 +104,6 @@ df.isnull().sum() # Nothing detected, but NaN exists in MA columns
 # Remove Missing value 
 df = df.dropna()
 df.isnull().sum() # Now all missing value is dropped
-
-
 
 # Normalization (Date 제외한 모든 수치부분 정규화) - 목적: Gradient Boosting, 시간 단축, 예측력 향상
 scaler = MinMaxScaler()
