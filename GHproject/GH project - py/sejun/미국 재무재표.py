@@ -31,5 +31,13 @@ df.to_csv(ticker+'.csv', index=False, encoding='euc-kr')
 # 엑셀 파일로 저장하기용
 # df.to_excel(ticker+'.xlsx', index=False, encoding='euc-kr')
 
-fs = pd.read_csv(r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\sejun\aapl.csv')
-print(fs)
+df = pd.read_csv(r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\sejun\aapl.csv')
+print(df)
+df = df.set_index("Quarter Ended").transpose()
+df.index.name = "Date"
+df.columns = df.columns.get_level_values(0)
+df.columns.name = None
+print(df)
+df.to_csv(ticker+'.csv', index=False, encoding='euc-kr')
+
+
