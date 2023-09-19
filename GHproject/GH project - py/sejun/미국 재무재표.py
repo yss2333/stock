@@ -33,11 +33,13 @@ df.to_csv(ticker+'.csv', index=False, encoding='euc-kr')
 
 df = pd.read_csv(r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\sejun\aapl.csv')
 print(df)
-df = df.set_index("Quarter Ended").transpose()
-df.index.name = "Date"
-df.columns = df.columns.get_level_values(0)
-df.columns.name = None
-print(df)
-df.to_csv(ticker+'.csv', index=False, encoding='euc-kr')
+df_transposed = df.transpose()
+df_transposed.columns = df_transposed.iloc[0]
+df_transposed = df.set_index("Quarter Ended").transpose()
+df_transposed.index.name = "Date"
+df_transposed.to_csv(ticker+'.csv', index=True, encoding='euc-kr')
+
+print(df_transposed)
+
 
 
