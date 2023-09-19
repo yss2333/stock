@@ -14,7 +14,7 @@
 # Make sure that you have all these libaries available to run the code successfully
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import FinanceDataReader as fdr
+
 from pandas_datareader import data
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -33,16 +33,16 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 ## 일반적으로 날짜 포함 7개의 칼럼 존재 -> 예측 정확도 상승을 위해 5MA, 10MA 등 이평선 추가
 
 # Load data
-df = pd.read_csv('GHproject/GH project - py/data/stock data.csv')
+df = pd.read_csv(r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\data\new_stock data.csv')
 # Add MA 
 
-df['MA5'] = df['Close'].rolling(window=5).mean()  # 5일 이평선 추가
-df['MA10'] = df['Close'].rolling(window=10).mean()  # 10일 이평선 추가
-df['MA20'] = df['Close'].rolling(window=20).mean()  # 20일 이평선 추가
-df['MA30'] = df['Close'].rolling(window=30).mean()  # 50일 이평선 추가
+df['MA5'] = df['Adj Close'].rolling(window=5).mean()  # 5일 이평선 추가
+df['MA10'] = df['Adj Close'].rolling(window=10).mean()  # 10일 이평선 추가
+df['MA20'] = df['Adj Close'].rolling(window=20).mean()  # 20일 이평선 추가
+df['MA30'] = df['Adj Close'].rolling(window=30).mean()  # 50일 이평선 추가
 
-#df['Date'] = pd.to_datetime(df['Date'])
-#df.set_index('Date', inplace=True)
+df['Date'] = pd.to_datetime(df['Date'])
+df.set_index('Date', inplace=True)
 
 df.head()
 len(df) # 914
@@ -105,9 +105,11 @@ df.isnull().sum() # Nothing detected, but NaN exists in MA columns
 df = df.dropna()
 df.isnull().sum() # Now all missing value is dropped
 
+print(df)
+
 # Normalization (Date 제외한 모든 수치부분 정규화) - 목적: Gradient Boosting, 시간 단축, 예측력 향상
 scaler = MinMaxScaler()
-scale_cols = ['Adj Close', 'Volume', 'USD_KRX_close', '5-year', '10-year', '20-year', 'T10Y2Y', 'VIXCLS']
+scale_cols = ['Adj Close', 'Close', 'Open', 'High', 'Low', 'Volume', 'MA5', 'MA10', 'MA20','MA30']
 scaled_df = scaler.fit_transform(df[scale_cols])
 scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
 
@@ -128,7 +130,7 @@ def make_sequence_dataset(feature, label, window_size):
 
 
 # feature_df, label_df 생성
-feature_cols = ['Adj Close', 'Volume', 'USD_KRX_close', '5-year', '10-year', '20-year', 'T10Y2Y', 'VIXCLS']
+feature_cols = ['Open', 'High', 'Low', 'Close', 'Volume', 'MA5', 'MA10', 'MA20','MA30','Adj Close']
 label_cols = [ 'Adj Close' ]
 
 feature_df = pd.DataFrame(scaled_df, columns=feature_cols)
@@ -149,6 +151,7 @@ print(feature_np.shape, label_np.shape) # (795, 6) (795, 1)
     
 # Set window size
 window_size = 50
+
 X, Y = make_sequence_dataset(feature_np, label_np, window_size)
 print(X.shape, Y.shape) # (817, 50, 5) (817, 1) ---- batch size, time steps, input dimensions (윈도우 사이즈에 따라, batch size = total sample size - window size)
 
@@ -191,8 +194,8 @@ model.fit(x_train, y_train, validation_data=(x_test, y_test),epochs=100, batch_s
 pred = model.predict(x_test)
 
 plt.figure(figsize=(12, 6))
-plt.title('3MA + 5MA + Close, window_size=40')
-plt.ylabel('Close')
+plt.title(' AdJ Included')
+plt.ylabel('Adj Close')
 plt.xlabel('period')
 plt.plot(y_test, label='actual')
 plt.plot(pred, label='prediction')
@@ -212,4 +215,5 @@ metrics_df = pd.DataFrame({
     'Values': [mape, mae, rmse]})
 
 print(metrics_df)
+
 
