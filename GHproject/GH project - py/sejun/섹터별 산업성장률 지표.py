@@ -44,14 +44,3 @@ merged_df.to_csv('GICS.csv')
 
 
 
-
-for sector in sectors:
-    data = yf.download(sector, start=start_date, end=end_date)
-    data['Daily Returns'] = data['Adj Close'].pct_change() * 100
-    sector_data[sector] = data[['Adj Close', 'Daily Returns']]
-    
-for sector, data in sector_data.items():
-    print(f"\n{sector} Data:")
-    print(data.head())   
-
-
