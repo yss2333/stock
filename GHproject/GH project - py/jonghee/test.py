@@ -1,7 +1,7 @@
 import pandas as pd
 import yfinance as yf
 
-ticker = yf.Ticker("AAPL")
+ticker = yf.Ticker("tsla")
 info = ticker.info
 sector = info.get('sector', None)
 sector

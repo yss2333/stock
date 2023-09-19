@@ -1,8 +1,30 @@
+'''
+1. # 블록별로 나눠서 실행하세요 (한번에 실행시 코드 순서 꼬여서 에러)
+
+
+2. 우리에 목표는 미국 상장 기업들에 대한 수정종가 예측힙니다 (Many to one)
+3. 보유 데이터는 기술적 분석과 기본적 분석에 대한 지표들로 구성되었습니다.
+4. 기술적 지표들로는 이평선, 볼린저, RSI, MACD, OBV 가 사용되었습니다.
+5. 기본적 지표들로는  DXY, DGS, T10Y2Y, VIX, FSI, 다우존스지수, S&P500, 
+    나스닥, 러셀2000, etf 기반 산업별 수정종가 변화, etf 기반 산업별 거래량 변화, 재무제표 데이터가 사용되었습니다.
+
+6. 두가지 분석 방법을 기반으로 각 LSTM 모델을 만들어 예측을 진행하고, 각 모델들의 예측값을 새로운 인풋으로 사용하여 최종 예측 모델을 만들었습니다.
+
+'''
+
+
+
+
+
+
+
+
+
 ########################################################### Load NA STOCK DATA ########################################################### 
 import yfinance as yf
 from datetime import datetime
 
-ticker = 'tsla' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
+ticker = 'aapl' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
 start_date = '2020-01-02'
 end_date = '2023-09-08'
 # today = datetime.today().strftime('%Y-%m-%d') 
@@ -90,7 +112,7 @@ FSI.index.name = 'Date'
 # 모든 결합된 데이터를 합침
 econ_df = adj_close_df.join([DGS, T10Y2Y, VIX, FSI], how='left')
 
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/Econ_Ind_data.csv'  
+save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/Econ_data.csv'  
 econ_df.to_csv(save_path, index=True) 
 
 
@@ -110,7 +132,7 @@ sectors = {
     "VDE": "Energy",              # Vanguard Energy ETF
     "MXI": "Materials",          # iShares Global Materials ETF
     "VIS": "Industrials",        # Vanguard Industrials ETF
-    "VCR": "Consumer Discretionary",  # Vanguard Consumer Discretionary ETF
+    "VCR": "Consumer Cyclical",  # Vanguard Consumer Discretionary ETF
     "XLP": "Consumer Staples",   # Consumer Staples Select Sector SPDR Fund
     "VHT": "Health Care",        # Vanguard Healthcare ETF
     "XLF": "Financials",         # Financial Select Sector SPDR Fund
@@ -130,6 +152,7 @@ for sector, sector_name in sectors.items():
     sector_data[sector] = data[[f'{sector_name} Adj Close', f'{sector_name} Volume']]
 
 ETF = pd.concat(sector_data.values(), axis=1)
+
 
 save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/GICS_sector.csv'  
 ETF.to_csv(save_path, index=True) 
@@ -152,45 +175,41 @@ headers = {
 }
 
 url = f"https://stockanalysis.com/stocks/{ticker}/financials/?p=quarterly" 
-
 response = requests.get(url, headers=headers)
 soup = BeautifulSoup(response.content, 'html.parser')
 element_tables = soup.select("table[data-test='financials']")
 
 df = pd.read_html(str(element_tables))[0] #'0번 테이블 뽑기
 df.to_csv(ticker+'.csv', index=False)
+df
 
-FS_quater = df.transpose()
-FS_quater.columns = FS_quater.iloc[0]
-FS_quater = df.set_index("Quarter Ended").transpose()
-FS_quater.index.name = "Date"
-FS_quater.to_csv(ticker+'.csv', index=True, encoding='euc-kr')
+FS_quarter = df.transpose()
+FS_quarter.columns = FS_quarter.iloc[0]
+FS_quarter = df.set_index("Quarter Ended").transpose()
+FS_quarter.index.name = "Date"
+FS_quarter.to_csv(ticker+'.csv', index=True, encoding='euc-kr')
+FS_quarter = FS_quarter.iloc[:-1, :]
+FS_quarter.index = pd.to_datetime(FS_quarter.index)
+FS_quarter
+save_path = f'/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/{ticker}_FS_quarter.csv'  
+FS_quarter.to_csv(save_path, index=True) 
 
-
-save_path = f'/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/{ticker}_FS_quater.csv'  
-FS_quater.to_csv(save_path, index=True) 
 
 
 ###################################### Merge into Fundamental analysis data ###########################################
-
-'''
-ticker import pandas as pd
-import yfinance as yf
-
-yf.Ticker("AAPL")
-info = ticker.info
+info =yf.Ticker(ticker).info
 sector = info.get('sector', None)
 sector
 
-df1 = pd.read_csv('sejun/econ_data.csv')
-df2 = pd.read_csv('data/GICS_sector.csv')
+sector_columns =  [col for col in ETF.columns if sector in col] 
+sector_df = ETF[sector_columns]
+sector_df.head()
 
-df2.head()
+merge_df = econ_df.merge(sector_df, on="Date", how="outer")
+fund_df = merge_df.merge(FS_quarter, on="Date", how="outer")
+fund_df = fund_df.sort_values(by='Date')
 
-sector_columns = [col for col in df2.columns if sector in col] + ["Date"]
-sector_df = df2[sector_columns]
-print(sector_df.head())
+fund_df
+save_path = f'/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/{ticker}_Fund_stock_data.csv'  
+fund_df.to_csv(save_path, index=True) 
 
-merged_df = df1.merge(sector_df, on="Date", how="inner")
-print(merged_df.head())
-'''
