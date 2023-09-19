@@ -1,34 +1,21 @@
 '''
 1. # 블록별로 나눠서 실행하세요 (한번에 실행시 코드 순서 꼬여서 에러)
 
-
-2. 우리에 목표는 미국 상장 기업들에 대한 수정종가 예측힙니다 (Many to one)
-3. 보유 데이터는 기술적 분석과 기본적 분석에 대한 지표들로 구성되었습니다.
-4. 기술적 지표들로는 이평선, 볼린저, RSI, MACD, OBV 가 사용되었습니다.
-5. 기본적 지표들로는  DXY, DGS, T10Y2Y, VIX, FSI, 다우존스지수, S&P500, 
-    나스닥, 러셀2000, etf 기반 산업별 수정종가 변화, etf 기반 산업별 거래량 변화, 재무제표 데이터가 사용되었습니다.
-
-6. 두가지 분석 방법을 기반으로 각 LSTM 모델을 만들어 예측을 진행하고, 각 모델들의 예측값을 새로운 인풋으로 사용하여 최종 예측 모델을 만들었습니다.
+2. 각 # 블록별로 save_path만 설정하면 됩니다. 경로 꼭 깃헙 레퍼지토리 - dacon/심화 loaded data 폴더에다가 저장해주세요.
+3. 처음 티커, 시작일, 종료일만 입력해주면 됩니다.
 
 '''
-
-
-
-
-
-
-
-
-
-########################################################### Load NA STOCK DATA ########################################################### 
 import yfinance as yf
 from datetime import datetime
 
+
+# 0. 여기만 입력하세요.
 ticker = 'aapl' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
 start_date = '2020-01-02'
 end_date = '2023-09-08'
-# today = datetime.today().strftime('%Y-%m-%d') 
 
+
+########################################################### Load NA STOCK DATA ########################################################### 
 stock_df = yf.download(ticker, start = start_date, end = end_date)
 save_path = f'/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/{ticker}_stock_data.csv'  
 stock_df.to_csv(save_path, index=True) 
