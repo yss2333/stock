@@ -14,7 +14,6 @@
 # Make sure that you have all these libaries available to run the code successfully
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
 from pandas_datareader import data
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -27,24 +26,25 @@ import tensorflow as tf # This code has been tested with TensorFlow 1.6
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.models import load_model
 
 ## 1. Load data
 ## 일반적으로 날짜 포함 7개의 칼럼 존재 -> 예측 정확도 상승을 위해 5MA, 10MA 등 이평선 추가
 
 # Load data
-df = pd.read_csv(r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\sejun.csv')
+df = pd.read_csv('data/stock data.csv')
 # Add MA 
 
-# df['MA5'] = df['Close'].rolling(window=5).mean()  # 5일 이평선 추가
-# df['MA10'] = df['Close'].rolling(window=10).mean()  # 10일 이평선 추가
-# df['MA20'] = df['Close'].rolling(window=20).mean()  # 20일 이평선 추가
-# df['MA30'] = df['Close'].rolling(window=30).mean()  # 50일 이평선 추가
+df['MA5'] = df['Close'].rolling(window=5).mean()  # 5일 이평선 추가
+df['MA15'] = df['Close'].rolling(window=15).mean()  # 10일 이평선 추가
+df['MA75'] = df['Close'].rolling(window=75).mean()  # 20일 이평선 추가
+df['MA150'] = df['Close'].rolling(window=150).mean()  # 50일 이평선 추가
 
-#df['Date'] = pd.to_datetime(df['Date'])
+df['Date'] = pd.to_datetime(df['Date'])
 #df.set_index('Date', inplace=True)
 
-df.head()
+df
 len(df) # 914
 
 ######################################################################################################################################################################################
@@ -109,29 +109,25 @@ df.isnull().sum() # Now all missing value is dropped
 
 # Normalization (Date 제외한 모든 수치부분 정규화) - 목적: Gradient Boosting, 시간 단축, 예측력 향상
 scaler = MinMaxScaler()
-scale_cols = ['Adj Close', 'Volume', 'DJI Adj Close', 'DJI Volume', 'NDAQ Adj Close', 'NDAQ Volume', 'SPX Adj Close', 'SPX Volume','RUT Adj Close','RUT Volume']
+scale_cols = ['Open', 'High', 'Low', 'Close', 'Volume', 'Change', 'MA5', 'MA15', 'MA75', 'MA150']
 scaled_df = scaler.fit_transform(df[scale_cols])
 scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
 
-print(scaled_df)
+len(scaled_df)
 
-import numpy as np
 # Define Input Parameter: feature, label => numpy type
+def make_sequene_dataset(feature, label, window_size):
+    feature_list = []      # 생성될 feature list
+    label_list = []        # 생성될 label list
 
-def make_sequence_dataset(feature, label, window_size): 
-    feature_list = [] # 생성될 feature list
-    label_list = [] # 생성될 label list
-        
     for i in range(len(feature)-window_size):
         feature_list.append(feature[i:i+window_size]) # 1-window size까지 feature에 추가 ... 를 반복
         label_list.append(label[i+window_size]) # window size + 1 번째는 label에 추가 ... 를 반복
     return np.array(feature_list), np.array(label_list) # 넘피배열로 변환
 
-
-
 # feature_df, label_df 생성
-feature_cols = ['Adj Close', 'Volume', 'DJI Adj Close', 'DJI Volume', 'NDAQ Adj Close', 'NDAQ Volume', 'SPX Adj Close', 'SPX Volume','RUT Adj Close','RUT Volume']
-label_cols = [ 'Adj Close' ]
+feature_cols = ['Open', 'High', 'Low', 'Close', 'Volume', 'Change', 'MA5', 'MA15', 'MA75', 'MA150']
+label_cols = [ 'Close' ]
 
 feature_df = pd.DataFrame(scaled_df, columns=feature_cols)
 label_df = pd.DataFrame(scaled_df, columns=label_cols)
@@ -142,7 +138,7 @@ label_df
 feature_np = feature_df.to_numpy()
 label_np = label_df.to_numpy()
 
-print(feature_np.shape, label_np.shape) # (795, 6) (795, 1)
+print(feature_np.shape, label_np.shape) # (765, 10) (765, 1)
 
 ######################################################################################################################################################################################
 ## 3. Create data
@@ -151,8 +147,8 @@ print(feature_np.shape, label_np.shape) # (795, 6) (795, 1)
     
 # Set window size
 window_size = 50
-X, Y = make_sequence_dataset(feature_np, label_np, window_size)
-print(X.shape, Y.shape) # (817, 50, 5) (817, 1) ---- batch size, time steps, input dimensions (윈도우 사이즈에 따라, batch size = total sample size - window size)
+X, Y = make_sequene_dataset(feature_np, label_np, window_size)
+print(X.shape, Y.shape) # (715, 50, 10) (715, 1) ---- batch size, time steps, input dimensions (윈도우 사이즈에 따라, batch size = total sample size - window size)
 
 # Split into train, test (split = int(len(X)*0.95))
 split = int(len(X)*0.80) # Recent 200 observations
@@ -162,8 +158,8 @@ y_train = Y[0:split]
 x_test = X[split:]
 y_test = Y[split:]
 
-print(x_train.shape, y_train.shape) # (645, 50, 6) (617, 1)
-print(x_test.shape, y_test.shape) # (200, 40, 5) (200, 1)
+print(x_train.shape, y_train.shape) # (572, 50, 10) (572, 1)
+print(x_test.shape, y_test.shape) # (143, 40, 5) (143, 1)
 
 ######################################################################################################################################################################################
 ## 4. Construct and Compile model
@@ -174,7 +170,7 @@ model = Sequential()
 model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True))  # return_sequences를 True로 설정하여 다음 LSTM 층으로 출력을 전달
 model.add(Dropout(0.2))  
 
-model.add(LSTM(64, activation='linear'))
+model.add(LSTM(64, activation='tanh'))
 model.add(Dropout(0.2))  
 
 model.add(Dense(1, activation='linear')) # 출력층
@@ -183,17 +179,22 @@ model.compile(loss='mse', optimizer='adam', metrics=['mae'])
 model.summary()
 
 
+
 # model 학습 (earlystopping 적용)
-early_stop = EarlyStopping(monitor='val_loss', patience=10,restore_best_weights=True)
+early_stop = EarlyStopping(monitor='val_loss', patience=10)
 
-model.fit(x_train, y_train, validation_data=(x_test, y_test),epochs=100, batch_size=32, callbacks=[early_stop])
+# model checkpoint 추가?
+
+model.fit(x_train, y_train, 
+          validation_data=(x_test, y_test),
+          epochs=100, batch_size=16,        # 100번 학습 - loss가 점점 작아진다, 만약 100번의 학습을 다 하지 않더라도 loss 가 더 줄지 않는다면, 맞춰둔 조건에 따라 조기종료가 이루어진다
+          callbacks=[early_stop])
 ######################################################################################################################################################################################
-
 # Prediction with Visualization
 pred = model.predict(x_test)
-
+len(pred)
 plt.figure(figsize=(12, 6))
-plt.title('미국 3대 지수')
+plt.title('3MA + 5MA + Close, window_size=40')
 plt.ylabel('Close')
 plt.xlabel('period')
 plt.plot(y_test, label='actual')
@@ -215,4 +216,31 @@ metrics_df = pd.DataFrame({
 
 print(metrics_df)
 
+#################################################################################### For stacking ####################################################################################
+# y_test, pred 값을 역변환하기 위한 임시 DataFrame 생성
+inverse_df = pd.DataFrame(np.zeros((len(y_test), len(scale_cols))), columns=scale_cols)
+inverse_df['Close'] = y_test.flatten()
 
+# y_test 역변환
+real_y_test = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Close')]
+
+# pred 값을 위한 임시 DataFrame 수정
+inverse_df['Close'] = pred.flatten()
+
+# pred 역변환
+real_pred = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Close')]
+
+# 해당 날짜 가져오기
+dates = df['Date'][split+window_size:].values
+
+# 결과를 DataFrame으로 변환
+result_df = pd.DataFrame({
+    'Date': dates,
+    'Real Price': real_y_test,
+    'Predicted Price': real_pred
+})
+
+print(result_df)
+
+save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/data/kr_stock_result.csv'  # 파일 저장 경로 설정
+result_df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장

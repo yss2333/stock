@@ -12,6 +12,8 @@
 ## 4. Construct LSTM (RNN) structure and train
 '''
 # Make sure that you have all these libaries available to run the code successfully
+my_list = []  # This will clear the list
+
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -33,16 +35,16 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 ## 일반적으로 날짜 포함 7개의 칼럼 존재 -> 예측 정확도 상승을 위해 5MA, 10MA 등 이평선 추가
 
 # Load data
-df = pd.read_csv(r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\sejun.csv')
+df = pd.read_csv(r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\sejun\econ_data.csv')
 # Add MA 
 
-# df['MA5'] = df['Close'].rolling(window=5).mean()  # 5일 이평선 추가
-# df['MA10'] = df['Close'].rolling(window=10).mean()  # 10일 이평선 추가
-# df['MA20'] = df['Close'].rolling(window=20).mean()  # 20일 이평선 추가
-# df['MA30'] = df['Close'].rolling(window=30).mean()  # 50일 이평선 추가
+df['MA5'] = df['Adj Close'].rolling(window=5).mean()  # 5일 이평선 추가
+df['MA10'] = df['Adj Close'].rolling(window=10).mean()  # 10일 이평선 추가
+df['MA20'] = df['Adj Close'].rolling(window=20).mean()  # 20일 이평선 추가
+df['MA30'] = df['Adj Close'].rolling(window=30).mean()  # 50일 이평선 추가
 
-#df['Date'] = pd.to_datetime(df['Date'])
-#df.set_index('Date', inplace=True)
+df['Date'] = pd.to_datetime(df['Date'])
+df.set_index('Date', inplace=True)
 
 df.head()
 len(df) # 914
@@ -98,6 +100,7 @@ fig.show()
 ##   - 3. Define Feature/Label column
 
 # Basic describe
+
 df.describe()
 df.isnull().sum() # Nothing detected, but NaN exists in MA columns
 
@@ -105,17 +108,17 @@ df.isnull().sum() # Nothing detected, but NaN exists in MA columns
 df = df.dropna()
 df.isnull().sum() # Now all missing value is dropped
 
-
+print(df)
 
 # Normalization (Date 제외한 모든 수치부분 정규화) - 목적: Gradient Boosting, 시간 단축, 예측력 향상
 scaler = MinMaxScaler()
-scale_cols = ['Adj Close', 'Volume', 'DJI Adj Close', 'DJI Volume', 'NDAQ Adj Close', 'NDAQ Volume', 'SPX Adj Close', 'SPX Volume','RUT Adj Close','RUT Volume']
+scale_cols = ['Adj Close', '2-year', '5-year', '10-year', 'T10Y2Y', 'VIXCLS']
 scaled_df = scaler.fit_transform(df[scale_cols])
 scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
 
 print(scaled_df)
 
-import numpy as np
+
 # Define Input Parameter: feature, label => numpy type
 
 def make_sequence_dataset(feature, label, window_size): 
@@ -130,7 +133,7 @@ def make_sequence_dataset(feature, label, window_size):
 
 
 # feature_df, label_df 생성
-feature_cols = ['Adj Close', 'Volume', 'DJI Adj Close', 'DJI Volume', 'NDAQ Adj Close', 'NDAQ Volume', 'SPX Adj Close', 'SPX Volume','RUT Adj Close','RUT Volume']
+feature_cols = ['2-year', '5-year', '10-year', 'T10Y2Y', 'VIXCLS']
 label_cols = [ 'Adj Close' ]
 
 feature_df = pd.DataFrame(scaled_df, columns=feature_cols)
@@ -151,6 +154,7 @@ print(feature_np.shape, label_np.shape) # (795, 6) (795, 1)
     
 # Set window size
 window_size = 50
+
 X, Y = make_sequence_dataset(feature_np, label_np, window_size)
 print(X.shape, Y.shape) # (817, 50, 5) (817, 1) ---- batch size, time steps, input dimensions (윈도우 사이즈에 따라, batch size = total sample size - window size)
 
@@ -184,17 +188,21 @@ model.summary()
 
 
 # model 학습 (earlystopping 적용)
-early_stop = EarlyStopping(monitor='val_loss', patience=10,restore_best_weights=True)
+early_stop = EarlyStopping(monitor='val_loss', patience=10)
 
-model.fit(x_train, y_train, validation_data=(x_test, y_test),epochs=100, batch_size=32, callbacks=[early_stop])
+
+model.fit(x_train, y_train, 
+          validation_data=(x_test, y_test),
+          epochs=100, batch_size=16,        # 100번 학습 - loss가 점점 작아진다, 만약 100번의 학습을 다 하지 않더라도 loss 가 더 줄지 않는다면, 맞춰둔 조건에 따라 조기종료가 이루어진다
+          callbacks=[early_stop])
 ######################################################################################################################################################################################
 
 # Prediction with Visualization
 pred = model.predict(x_test)
 
 plt.figure(figsize=(12, 6))
-plt.title('미국 3대 지수')
-plt.ylabel('Close')
+plt.title('경제 지표 모델')
+plt.ylabel('Adj Close')
 plt.xlabel('period')
 plt.plot(y_test, label='actual')
 plt.plot(pred, label='prediction')
@@ -215,4 +223,37 @@ metrics_df = pd.DataFrame({
 
 print(metrics_df)
 
+inverse_df = pd.DataFrame(np.zeros((len(y_test), len(scale_cols))), columns=scale_cols)
+inverse_df['Adj Close'] = y_test.flatten()
 
+# y_test 역변환
+real_y_test = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Adj Close')]
+
+# pred 값을 위한 임시 DataFrame 수정
+inverse_df['Adj Close'] = pred.flatten()
+
+# pred 역변환
+real_pred = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Adj Close')]
+
+# 해당 날짜 가져오기
+dates = df.reset_index()['Date'][split+window_size:].values
+
+# 결과를 DataFrame으로 변환
+result_df = pd.DataFrame({
+    'Date': dates,
+    'Real Price': real_y_test,
+    'Predicted Price': real_pred
+})
+
+print(result_df)
+
+##################################################상관관계 분석##########################################################################
+scaled_df
+correlation_matrix = scaled_df.corr()
+
+# 수정 종가와 다른 변수들 간의 상관관계 출력
+print(correlation_matrix['Adj Close'])
+
+df = df.drop(columns=['Date'])
+correlation_matrix2 = df.corr()
+print(correlation_matrix2['Adj Close'])

@@ -14,7 +14,7 @@
 # Make sure that you have all these libaries available to run the code successfully
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
+import FinanceDataReader as fdr
 from pandas_datareader import data
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -33,13 +33,13 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 ## 일반적으로 날짜 포함 7개의 칼럼 존재 -> 예측 정확도 상승을 위해 5MA, 10MA 등 이평선 추가
 
 # Load data
-df = pd.read_csv('C:\\Users\\yss06\\Desktop\\python\\stock\\GHproject\\GH project - py\\sejun\\econ_df.csv')
+df = pd.read_csv('GHproject/GH project - py/data/stock data.csv')
 # Add MA 
 
-# df['MA5'] = df['Close'].rolling(window=5).mean()  # 5일 이평선 추가
-# df['MA10'] = df['Close'].rolling(window=10).mean()  # 10일 이평선 추가
-# df['MA20'] = df['Close'].rolling(window=20).mean()  # 20일 이평선 추가
-# df['MA30'] = df['Close'].rolling(window=30).mean()  # 50일 이평선 추가
+df['MA5'] = df['Close'].rolling(window=5).mean()  # 5일 이평선 추가
+df['MA10'] = df['Close'].rolling(window=10).mean()  # 10일 이평선 추가
+df['MA20'] = df['Close'].rolling(window=20).mean()  # 20일 이평선 추가
+df['MA30'] = df['Close'].rolling(window=30).mean()  # 50일 이평선 추가
 
 #df['Date'] = pd.to_datetime(df['Date'])
 #df.set_index('Date', inplace=True)
@@ -104,8 +104,6 @@ df.isnull().sum() # Nothing detected, but NaN exists in MA columns
 # Remove Missing value 
 df = df.dropna()
 df.isnull().sum() # Now all missing value is dropped
-
-
 
 # Normalization (Date 제외한 모든 수치부분 정규화) - 목적: Gradient Boosting, 시간 단축, 예측력 향상
 scaler = MinMaxScaler()

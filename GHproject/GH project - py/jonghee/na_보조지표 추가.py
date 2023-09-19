@@ -1,10 +1,10 @@
 # pip install ta
-
 import pandas as pd
 import ta
 import plotly.graph_objects as go
 
-df = pd.read_csv('data/new_stock data.csv')
+
+df = pd.read_csv('data\\new_stock data.csv')
 df
 # 볼린저 추가
 df['BOL_H'] = ta.volatility.bollinger_hband(df['Close'])
