@@ -1,38 +1,22 @@
-import os
 import pandas as pd
-import datetime as dt
-from concurrent import futures
-import matplotlib.pyplot as plt
-import numpy as np
 import yfinance as yf
-import pandas_datareader.data as web
-data_dir = "./data"
-os.makedirs(data_dir, exist_ok=True)
 
-tables = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
-first_table = tables[0]
-second_table = tables[1]
+ticker = yf.Ticker("tsla")
+info = ticker.info
+sector = info.get('sector', None)
+sector
 
-first_table
-second_table 
+df1 = pd.read_csv('sejun/econ_data.csv')
+df2 = pd.read_csv('data/GICS_sector.csv')
 
-df = first_table
-print(df.shape)
-df["Symbol"] = df["Symbol"].map(lambda x: x.replace(".", "-"))  # rename symbol to escape symbol error
-sp500_tickers = list(df["Symbol"])
-df.head()
+df2.head()
 
-sectors = df["GICS Sector"].value_counts()
-plt.bar(sectors.index, sectors.values)
-plt.xticks(rotation=90)
-plt.xlabel("sector")
-plt.ylabel("number of stocks")
-plt.show()
+sector_columns = [col for col in df2.columns if sector in col] + ["Date"]
+sector_df = df2[sector_columns]
+print(sector_df.head())
 
-added_year = second_table["Date"]["Date"].map(lambda x: int(x[-4:]))
-added_year = added_year.value_counts().sort_index()
-plt.bar(added_year.index, added_year)
-plt.xticks(rotation=30)
-plt.xlabel("year")
-plt.ylabel("number of replacesd tickers")
-plt.show()
+merged_df = df1.merge(sector_df, on="Date", how="inner")
+print(merged_df.head())
+
+
+
