@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
@@ -38,7 +39,9 @@ meta_model = LinearRegression()
 meta_model.fit(X_train, y_train)
 
 # 4. Meta model Predicting
+
 y_pred = meta_model.predict(X_val)
+
 
 # 5. Test MSE
 mse = mean_squared_error(y_val, y_pred)
@@ -106,3 +109,20 @@ result_table = pd.DataFrame({
 
 print(result_table)
 
+
+y_train_pred = meta_model.predict(X_train)
+mse_train = mean_squared_error(y_train, y_train_pred)
+# 데이터 저장
+losses = {
+    "train_loss": [mse_train],
+    "val_loss": [mse]
+}
+
+plt.figure(figsize=(10, 6))
+plt.scatter(['Train'], [mse_train], label='Train Loss', s=100)
+plt.scatter(['Validation'], [mse], label='Validation Loss', color='red', s=100)
+plt.title('Train vs. Validation Loss')
+plt.ylabel('Mean Squared Error')
+plt.legend()
+plt.grid(True)
+plt.show()
