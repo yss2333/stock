@@ -5,7 +5,6 @@ import seaborn as sns
 
 '''
 ### 기본적인 방법은 스캐터플랏을 통해 선형적 상관관계 확인 후 상관계수 일정 넘는 변수들로 선택
-    - 주의: 비선형 등 이것만으론 5프로 모자라다 참고! 아이디어 바람!
 
 ### 데이터는 올바르게 심화 loaded data에 저장되어있다면 티커만 넣어주면 따로 건드릴것 없다.
 
@@ -26,8 +25,8 @@ stock_tech_df = pd.read_csv(f'dacon/심화 loaded data/{ticker}_stock_Tech_data.
 # 1.1. Check Scatterplot against Adj Close
 features = [col for col in stock_tech_df.columns if col not in ['Adj Close', 'Date']]
 
-n = len(features) # 총 변수 갯수에 따른 행과 열 계산
-ncols = 8  # 한 행에 2개의 그래프
+n = len(features) # Check the number of variables
+ncols = 8  # 8 table each row
 nrows = int(n / ncols) + (n % ncols)
 fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8, 2*nrows))
 for ax, feature in zip(axes.ravel(), features):
@@ -70,8 +69,6 @@ correlation = Econ_df.corr()['Adj Close']
 selected_features = correlation[correlation.abs() > 0.6].index.tolist() # 0.6 이상의 상관계수를 가진 feature들 필터링
 selected_features.remove('Adj Close') # 'Adj Close' 제거
 print(selected_features) # 0.6 넘는놈 없다....
-
-
 
 
 
