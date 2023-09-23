@@ -261,8 +261,8 @@ from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 
 # 1. Base Model Scaling:
-df1 = pd.read_csv('jonghee_test/Tech_stock_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
-df2 = pd.read_csv('jonghee_test/FS_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
+df1 = pd.read_csv('/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/Tech_stock_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
+df2 = pd.read_csv('/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_testFS_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
 
 df1
 df2

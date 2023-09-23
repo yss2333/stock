@@ -14,7 +14,9 @@ ticker = 'aapl'
 
 ## 1. Load data
 df = pd.read_csv(f'dacon/심화 loaded data/{ticker}_stock_Tech_data.csv')
-df
+
+selected_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+df = df[selected_columns]
 len(df) # 2502
 
 
@@ -26,9 +28,7 @@ df.isnull().sum() # Now all missing value is dropped
 
 ## 2.2. Normalization - 목적: Gradient Boosting, 시간 단축, 예측력 향상
 scaler = MinMaxScaler()
-scale_cols = ['Open', 'High', 'Low', 'Close','Adj Close','Volume',
-              'MA5','MA15','MA75','MA150', 'BOL_H', 'BOL_AVG', 'BOL_L',
-              'RSI', 'MACD', 'MACD_SIGNAL', 'OBV']
+scale_cols = ['Open', 'High', 'Low', 'Close','Adj Close','Volume']
 scaled_df = scaler.fit_transform(df[scale_cols])
 scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
 
@@ -42,9 +42,7 @@ def make_sequene_dataset(feature, label, window_size):
     return np.array(feature_list), np.array(label_list) 
 
 # feature_df, label_df 생성
-feature_cols = ['Open', 'High', 'Low', 'Close','Volume',
-              'MA5','MA15','MA75','MA150', 'BOL_H', 'BOL_AVG', 'BOL_L',
-              'RSI', 'MACD', 'MACD_SIGNAL', 'OBV']
+feature_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
 label_cols = [ 'Adj Close' ]
 
 feature_df = pd.DataFrame(scaled_df, columns=feature_cols)
@@ -54,7 +52,7 @@ label_df = pd.DataFrame(scaled_df, columns=label_cols)
 feature_np = feature_df.to_numpy()
 label_np = label_df.to_numpy()
 
-print(feature_np.shape, label_np.shape) # (2353, 16) (2353, 1)
+print(feature_np.shape, label_np.shape) # (2502, 5) (2502, 1)
 
 
 ## 3. Create data    
@@ -83,7 +81,19 @@ model = Sequential()
 model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True))  # return_sequences를 True로 설정하여 다음 LSTM 층으로 출력을 전달
 model.add(Dropout(0.2))  
 
-model.add(LSTM(64, activation='relu'))
+model.add(LSTM(64, activation='tanh'))
+model.add(Dropout(0.2))  
+
+model.add(LSTM(32, activation='tanh'))
+model.add(Dropout(0.2))  
+
+model.add(LSTM(32, activation='tanh'))
+model.add(Dropout(0.2)) 
+
+model.add(LSTM(32, activation='tanh'))
+model.add(Dropout(0.2)) 
+
+model.add(LSTM(16, activation='tanh'))
 model.add(Dropout(0.2))  
 
 model.add(Dense(1, activation='linear')) # 출력층
@@ -97,14 +107,14 @@ train_loss_history = []
 val_loss_history = []
 
 # model 학습 (checkpoint, earlystopping, reduceLR 적용)
-save_best_only=tf.keras.callbacks.ModelCheckpoint(filepath="jonghee_test/tech lstm_model.h5", monitor='val_loss', save_best_only=True) #가장 좋은 성능을 낸 val_loss가 적은 model만 남겨 놓았습니다.
+# save_best_only=tf.keras.callbacks.ModelCheckpoint(filepath="jonghee_test/price lstm_model.h5", monitor='val_loss', save_best_only=True) #가장 좋은 성능을 낸 val_loss가 적은 model만 남겨 놓았습니다.
 early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)
 reduceLR = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10) #검증 손실이 10epoch 동안 좋아지지 않으면 학습률을 0.1 배로 재구성하는 명령어입니다.
 
 hist = model.fit(x_train, y_train, 
           validation_data=(x_test, y_test),
           epochs=100, batch_size=128,        # 100번 학습 - loss가 점점 작아진다, 만약 100번의 학습을 다 하지 않더라도 loss 가 더 줄지 않는다면, 맞춰둔 조건에 따라 조기종료가 이루어진다
-          callbacks=[early_stop,  reduceLR]) # save_best_only ,
+          callbacks=[early_stop,  reduceLR]) #save_best_only ,
 
 pred = model.predict(x_test)
 
@@ -160,14 +170,20 @@ print(metrics_df)
 
 
 #################################################################################### For stacking ####################################################################################
-# y_test 역변환을 위한 임시 DataFrame
-inverse_df = pd.DataFrame(np.zeros((len(y_test), len(scale_cols))), columns=scale_cols)
-inverse_df['Adj Close'] = y_test.flatten()
-real_y_test = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Adj Close')]
 
-# pred 역변환을 위한 임시 DataFrame
-inverse_df['Adj Close'] = pred.flatten()
-real_pred = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Adj Close')]
+# y_test, pred 값을 역변환하기 위한 임시 DataFrame 생성
+inverse_df = pd.DataFrame(np.zeros((len(y_test), len(scale_cols))), columns=scale_cols)
+inverse_df['Close'] = y_test.flatten()
+
+# y_test 역변환
+real_y_test = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Close')]
+
+# pred 값을 위한 임시 DataFrame 수정
+inverse_df['Close'] = pred.flatten()
+
+# pred 역변환
+real_pred = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Close')]
+
 # 해당 날짜 가져오기
 dates = df['Date'][split+window_size:].values
 
@@ -179,7 +195,5 @@ result_df = pd.DataFrame({
 })
 
 print(result_df)
-
-
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/jonghee_test/Tech_stock_result.csv'  # 파일 저장 경로 설정
+save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/only_stock_result.csv'  # 파일 저장 경로 설정
 result_df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장

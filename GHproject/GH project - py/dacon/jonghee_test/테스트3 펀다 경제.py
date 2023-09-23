@@ -13,9 +13,9 @@ from tensorflow.keras.callbacks import EarlyStopping
 ticker = 'aapl'
 
 ## 1. Load data
-df = pd.read_csv(f'dacon/심화 loaded data/{ticker}_stock_Tech_data.csv')
-
-selected_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+df = pd.read_csv(f'dacon/심화 loaded data/Econ_data.csv')
+df
+selected_columns = ['Adj Close', '2-year', '5-year', '10-year', 'T10Y2Y', 'VIXCLS']
 df = df[selected_columns]
 len(df) # 2502
 
@@ -28,7 +28,7 @@ df.isnull().sum() # Now all missing value is dropped
 
 ## 2.2. Normalization - 목적: Gradient Boosting, 시간 단축, 예측력 향상
 scaler = MinMaxScaler()
-scale_cols = ['Open', 'High', 'Low', 'Close','Adj Close','Volume']
+scale_cols = ['Adj Close', '2-year', '5-year', '10-year', 'T10Y2Y', 'VIXCLS']
 scaled_df = scaler.fit_transform(df[scale_cols])
 scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
 
@@ -42,7 +42,7 @@ def make_sequene_dataset(feature, label, window_size):
     return np.array(feature_list), np.array(label_list) 
 
 # feature_df, label_df 생성
-feature_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+feature_cols = ['2-year', '5-year', '10-year', 'T10Y2Y', 'VIXCLS']
 label_cols = [ 'Adj Close' ]
 
 feature_df = pd.DataFrame(scaled_df, columns=feature_cols)
@@ -84,16 +84,13 @@ model.add(Dropout(0.2))
 model.add(LSTM(64, activation='tanh'))
 model.add(Dropout(0.2))  
 
-model.add(LSTM(32, activation='tanh'))
+model.add(LSTM(64, activation='tanh'))
 model.add(Dropout(0.2))  
 
-model.add(LSTM(32, activation='tanh'))
-model.add(Dropout(0.2)) 
+model.add(LSTM(64, activation='tanh'))
+model.add(Dropout(0.2))  
 
-model.add(LSTM(32, activation='tanh'))
-model.add(Dropout(0.2)) 
-
-model.add(LSTM(16, activation='tanh'))
+model.add(LSTM(64, activation='tanh'))
 model.add(Dropout(0.2))  
 
 model.add(Dense(1, activation='linear')) # 출력층
@@ -171,19 +168,14 @@ print(metrics_df)
 
 #################################################################################### For stacking ####################################################################################
 
-# y_test, pred 값을 역변환하기 위한 임시 DataFrame 생성
+# y_test 역변환을 위한 임시 DataFrame
 inverse_df = pd.DataFrame(np.zeros((len(y_test), len(scale_cols))), columns=scale_cols)
-inverse_df['Close'] = y_test.flatten()
+inverse_df['Adj Close'] = y_test.flatten()
+real_y_test = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Adj Close')]
 
-# y_test 역변환
-real_y_test = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Close')]
-
-# pred 값을 위한 임시 DataFrame 수정
-inverse_df['Close'] = pred.flatten()
-
-# pred 역변환
-real_pred = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Close')]
-
+# pred 역변환을 위한 임시 DataFrame
+inverse_df['Adj Close'] = pred.flatten()
+real_pred = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Adj Close')]
 # 해당 날짜 가져오기
 dates = df['Date'][split+window_size:].values
 
@@ -195,5 +187,6 @@ result_df = pd.DataFrame({
 })
 
 print(result_df)
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/jonghee_test/only_stock_result.csv'  # 파일 저장 경로 설정
+
+save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/econ_result.csv'  # 파일 저장 경로 설정
 result_df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장

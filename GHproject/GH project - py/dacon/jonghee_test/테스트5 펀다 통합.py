@@ -13,26 +13,34 @@ from tensorflow.keras.callbacks import EarlyStopping
 ticker = 'aapl'
 
 ## 1. Load data
-df = pd.read_csv(f'dacon/심화 loaded data/Industry_data.csv')
+df1 = pd.read_csv(f'dacon/심화 loaded data/Econ_data.csv')
+df2 = pd.read_csv(f'dacon/심화 loaded data/Industry_data.csv')
 
-selected_columns = df.columns[[1, 3, 5, 7, 9, 10]].tolist()
-df = df[selected_columns]
-len(df) # 2502
-df
+selected_columns = ['Date','Adj Close', '2-year', '5-year', '10-year', 'T10Y2Y', 'VIXCLS']
+df1 = df1[selected_columns]
 
-## 2.1. Remove Outliers & Missing value
+selected_columns = df2.columns[[0, 1, 3, 5, 9, 10]].tolist()
+df2 = df2[selected_columns]
+
+# 'Date' 열을 인덱스로 설정합니다.
+df1.set_index('Date', inplace=True)
+df2.set_index('Date', inplace=True)
+
+# 두 데이터프레임을 병합합니다.
+df = df1.combine_first(df2)
+
 df.isnull().sum() 
 df = df.dropna()
-df.isnull().sum() # Now all missing value is dropped
-
+df.isnull().sum() 
 
 ## 2.2. Normalization - 목적: Gradient Boosting, 시간 단축, 예측력 향상
 scaler = MinMaxScaler()
-scale_cols = df.columns[[1,2,3,4,5]].tolist()
-
+scale_cols = df.columns[[1,2,3,4,5,6,7,8,9]].tolist()
 scaled_df = scaler.fit_transform(df[scale_cols])
 scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
+scaled_df
 
+scaled_df
 # Define Input Parameter: feature, label => numpy type
 def make_sequene_dataset(feature, label, window_size):
     feature_list = []      
@@ -43,17 +51,18 @@ def make_sequene_dataset(feature, label, window_size):
     return np.array(feature_list), np.array(label_list) 
 
 # feature_df, label_df 생성
-feature_cols = df.columns[[1,2,3,5]].tolist()
+feature_cols = df.columns[[1,2,4,5,6,7,8,9]].tolist()
 label_cols = [ 'Adj Close' ]
 
 feature_df = pd.DataFrame(scaled_df, columns=feature_cols)
 label_df = pd.DataFrame(scaled_df, columns=label_cols)
 
+
 # DataFrame => Numpy 변환
 feature_np = feature_df.to_numpy()
 label_np = label_df.to_numpy()
 
-print(feature_np.shape, label_np.shape) # (2502, 5) (2502, 1)
+print(feature_np.shape, label_np.shape) # (2483, 8) (2483, 1)
 
 
 ## 3. Create data    
@@ -70,8 +79,8 @@ y_train = Y[0:split]
 x_test = X[split:]
 y_test = Y[split:]
 
-print(x_train.shape, y_train.shape) # (1961, 50, 5) (1961, 1)
-print(x_test.shape, y_test.shape) # (491, 50, 5) (491, 1)
+print(x_train.shape, y_train.shape) # (1946, 50, 8) (1946, 1)
+print(x_test.shape, y_test.shape) # (487, 50, 8) (487, 1)
 
 ######################################################################################################################################################################################
 ## 4. Construct and Compile model
@@ -82,19 +91,13 @@ model = Sequential()
 model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True))  # return_sequences를 True로 설정하여 다음 LSTM 층으로 출력을 전달
 model.add(Dropout(0.2))  
 
-model.add(LSTM(64, activation='tanh'))
+model.add(LSTM(64, activation='relu'))
 model.add(Dropout(0.2))  
 
-model.add(LSTM(32, activation='tanh'))
+model.add(LSTM(64, activation='relu'))
 model.add(Dropout(0.2))  
 
-model.add(LSTM(32, activation='tanh'))
-model.add(Dropout(0.2)) 
-
-model.add(LSTM(32, activation='tanh'))
-model.add(Dropout(0.2)) 
-
-model.add(LSTM(16, activation='tanh'))
+model.add(LSTM(64, activation='relu'))
 model.add(Dropout(0.2))  
 
 model.add(Dense(1, activation='linear')) # 출력층
@@ -171,6 +174,7 @@ print(metrics_df)
 
 
 #################################################################################### For stacking ####################################################################################
+
 # y_test 역변환을 위한 임시 DataFrame
 inverse_df = pd.DataFrame(np.zeros((len(y_test), len(scale_cols))), columns=scale_cols)
 inverse_df['Adj Close'] = y_test.flatten()
@@ -191,5 +195,5 @@ result_df = pd.DataFrame({
 
 print(result_df)
 
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/jonghee_test/industry_result.csv'  # 파일 저장 경로 설정
+save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/econ_result.csv'  # 파일 저장 경로 설정
 result_df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장
