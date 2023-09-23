@@ -2,21 +2,21 @@
 import yfinance as yf
 from datetime import datetime
 
-ticker = 'nvda' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
+ticker = 'tsla' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
 start_date = '2020-01-02'
 end_date = '2023-09-08'
-# today = datetime.today().strftime('%Y-%m-%d') 
 
 stock_df = yf.download(ticker, start = start_date, end = end_date)
-save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\{ticker}_Tech_stock_data.csv'  
+save_path = f'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\심화 loaded data\{ticker}_FS_Income.csv' 
 stock_df.to_csv(save_path, index=True) 
 ########################################################### Add Technical Indicator to NA STOCK DATA ########################################################### 
+import yfinance as yf
+from datetime import datetime
+import numpy as np
 import pandas as pd
 import ta
 
-###
-# 생성되는 변수: 이평선, 볼린저, RSI, MACD, OBV
-###
+stock_df = yf.download(ticker, start = start_date, end = end_date)
 
 ## 이평선 추가
 stock_df['MA5'] = stock_df['Close'].rolling(window=5).mean()  # 5일 이평선 추가
@@ -41,7 +41,7 @@ stock_df['OBV'] = ta.volume.on_balance_volume(stock_df['Close'], stock_df['Volum
 
 tech_df = stock_df
 
-save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\{ticker}_Tech_stock_data.csv'  
+save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\심화 loaded data\{ticker}_Tech_stock_data.csv'  
 tech_df.to_csv(save_path, index=True) 
 
 ########################################################### load Economic Indicator DATA ########################################################### 
@@ -53,10 +53,6 @@ import numpy as np
 import seaborn as sns
 import yfinance as yf
 from fredapi import Fred
-
-###
-# 생성되는 데이터프레임: DXY, DGS, T10Y2Y, VIX, FSI
-###
 
 adj_close_df = stock_df[['Adj Close']]
 
@@ -89,28 +85,43 @@ FSI.index.name = 'Date'
 
 # 모든 결합된 데이터를 합침
 econ_df = adj_close_df.join([DGS, T10Y2Y, VIX, FSI], how='left')
+econ_df.dtypes # Check which Data types are object
 
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/Econ_Ind_data.csv'  
+save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\심화 loaded data\{ticker}_Tech_stock_data.csv'  
 econ_df.to_csv(save_path, index=True) 
-
 
 ########################################################### load Industry Indicator DATA ########################################################### 
 import yfinance as yf
 import pandas as pd
+from pandas_datareader import data as pdr
+import yfinance as yfin
 
-###
-# 생성되는 변수: 다우존스지수, S&P500, 나스닥, 러셀2000, etf 기반 산업별 수정종가 변화, etf 기반 산업별 거래량 변화
-###
+yfin.pdr_override() ## Load 4 index data
 
+df = pdr.get_data_yahoo("^DJI", start=start_date, end=end_date) # 다우지수
+df1 = pdr.get_data_yahoo("NDAQ", start=start_date, end=end_date) # 나스닥
+df2 = pdr.get_data_yahoo("^SPX", start=start_date, end=end_date) # S&P500
+df3 = pdr.get_data_yahoo("^RUT", start=start_date, end=end_date) # 러셀 2000
 
-### 태환부분 코드 없음
+df.rename(columns={'Adj Close': 'DJI Adj Close', 'Volume': 'DJI Volume'}, inplace=True) # 이름 다시정하기
+df1.rename(columns={'Adj Close': 'NDAQ Adj Close', 'Volume': 'NDAQ Volume'}, inplace=True)
+df2.rename(columns={'Adj Close': 'SPX Adj Close', 'Volume': 'SPX Volume'}, inplace=True)
+df3.rename(columns={'Adj Close': 'RUT Adj Close', 'Volume': 'RUT Volume'}, inplace=True)
+
+df = df[['DJI Adj Close', 'DJI Volume']] # 각 자료 칼럼 선택
+df1 = df1[['NDAQ Adj Close', 'NDAQ Volume']]
+df2 = df2[['SPX Adj Close', 'SPX Volume']]
+df3 = df3[['RUT Adj Close', 'RUT Volume']]
+
+Index_data = pd.concat([df, df1, df2, df3], axis=1, join='outer')
+Index_data = Index_data.join(stock_df['Adj Close'], how='left')
 
 ## ETF 기반 산업별 수정종가 + 거래량 데이터
 sectors = {
     "VDE": "Energy",              # Vanguard Energy ETF
     "MXI": "Materials",          # iShares Global Materials ETF
     "VIS": "Industrials",        # Vanguard Industrials ETF
-    "VCR": "Consumer Discretionary",  # Vanguard Consumer Discretionary ETF
+    "VCR": "Consumer Cyclical",  # Vanguard Consumer Discretionary ETF
     "XLP": "Consumer Staples",   # Consumer Staples Select Sector SPDR Fund
     "VHT": "Health Care",        # Vanguard Healthcare ETF
     "XLF": "Financials",         # Financial Select Sector SPDR Fund
@@ -131,7 +142,7 @@ for sector, sector_name in sectors.items():
 
 ETF = pd.concat(sector_data.values(), axis=1)
 
-save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\{ticker}_Tech_stock_data.csv'  
+save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\심화 loaded data\{ticker}_Tech_stock_data.csv'  
 ETF.to_csv(save_path, index=True) 
 
 ########################################################### load Company Indicator DATA ########################################################### 
@@ -150,15 +161,92 @@ from yahooquery import Ticker
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36'
 }
-
+## 1. INCOME STATEMENT
 url = f"https://stockanalysis.com/stocks/{ticker}/financials/?p=quarterly" 
-
 response = requests.get(url, headers=headers)
 soup = BeautifulSoup(response.content, 'html.parser')
 element_tables = soup.select("table[data-test='financials']")
 
-df = pd.read_html(str(element_tables))[0] #'0번 테이블 뽑기
-df.to_csv(ticker+'.csv', index=False)
+Income_df = pd.read_html(str(element_tables))[0] #'0번 테이블 뽑기
+Income_df.to_csv(ticker+'.csv', index=False)
+
+FS_Income = Income_df.transpose()
+FS_Income.columns = FS_Income.iloc[0]
+FS_Income = Income_df.set_index("Quarter Ended").transpose()
+FS_Income.index.name = "Date"
+FS_Income.to_csv(ticker+'.csv', index=True, encoding='euc-kr')
+FS_Income = FS_Income.iloc[:-1, :]
+
+for column in FS_Income.columns:
+    if FS_Income[column].dtype == 'object':
+        FS_Income[column] = FS_Income[column].apply(lambda x: float(x) if '-' in x and x[1:].isdigit() else x) # '-' 뒤에 숫자가 있는 문자열 처리
+        if FS_Income[column].dtype == 'object' and FS_Income[column].str.contains('%').any():
+            FS_Income[column] = FS_Income[column].apply(lambda x: float(x.replace('%', '')) / 100 if '%' in x else x) # 퍼센트 기호가 있는 문자열 처리
+        FS_Income[column] = pd.to_numeric(FS_Income[column], errors='coerce')  # 다른 문자열을 숫자로 변환
+
+save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\심화 loaded data\{ticker}_Tech_stock_data.csv'  
+FS_Income.to_csv(save_path, index=True) 
+
+## 2. RATIO STATEMENT
+url = f"https://stockanalysis.com/stocks/{ticker}/financials/ratios/?p=quarterly" 
+response = requests.get(url, headers=headers)
+soup = BeautifulSoup(response.content, 'html.parser')
+element_tables = soup.select("table[data-test='financials']")
+
+Ratio_df = pd.read_html(str(element_tables))[0] #'0번 테이블 뽑기
+Ratio_df.to_csv(ticker+'.csv', index=False)
+
+FS_Ratio = Ratio_df.transpose()
+FS_Ratio.columns = FS_Ratio.iloc[0]
+FS_Ratio = Ratio_df.set_index("Quarter Ended").transpose()
+FS_Ratio.index.name = "Date"
+FS_Ratio.to_csv(ticker+'.csv', index=True, encoding='euc-kr')
+FS_Ratio = FS_Ratio.iloc[1:-1, :]
+
+for column in FS_Ratio.columns:
+    if FS_Ratio[column].dtype == 'object':       
+        FS_Ratio[column] = FS_Ratio[column].apply(lambda x: float(x) if '-' in x and x[1:].isdigit() else x)             # '-' 뒤에 숫자가 있는 문자열 처리
+        if FS_Ratio[column].dtype == 'object' and FS_Ratio[column].str.contains('%').any():
+            FS_Ratio[column] = FS_Ratio[column].apply(lambda x: float(x.replace('%', '')) / 100 if '%' in x else x) # 퍼센트 기호가 있는 문자열 처리       
+        FS_Ratio[column] = pd.to_numeric(FS_Ratio[column], errors='coerce') # 다른 문자열을 숫자로 변환
+
+save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\심화 loaded data\{ticker}_Tech_stock_data.csv'  
+FS_Ratio.to_csv(save_path, index=True) 
+
+## 3. Balance Sheet
+url = f"https://stockanalysis.com/stocks/{ticker}/financials/balance-sheet/?p=quarterly" 
+response = requests.get(url, headers=headers)
+soup = BeautifulSoup(response.content, 'html.parser')
+element_tables = soup.select("table[data-test='financials']")
+
+Balance_df = pd.read_html(str(element_tables))[0] #'0번 테이블 뽑기
+Balance_df.to_csv(ticker+'.csv', index=False)
+
+FS_Balance = Balance_df.transpose()
+FS_Balance.columns = FS_Balance.iloc[0]
+FS_Balance = Balance_df.set_index("Quarter Ended").transpose()
+FS_Balance.index.name = "Date"
+FS_Balance.to_csv(ticker+'.csv', index=True, encoding='euc-kr')
+FS_Balance = FS_Balance.iloc[:-1, :]
+
+for column in FS_Balance.columns:
+    if FS_Balance[column].dtype == 'object':       
+        FS_Balance[column] = FS_Balance[column].apply(lambda x: float(x) if '-' in x and x[1:].isdigit() else x)             # '-' 뒤에 숫자가 있는 문자열 처리
+        if FS_Balance[column].dtype == 'object' and FS_Balance[column].str.contains('%').any():
+            FS_Balance[column] = FS_Balance[column].apply(lambda x: float(x.replace('%', '')) / 100 if '%' in x else x) # 퍼센트 기호가 있는 문자열 처리       
+        FS_Balance[column] = pd.to_numeric(FS_Balance[column], errors='coerce') # 다른 문자열을 숫자로 변환
+
+save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\심화 loaded data\{ticker}_Tech_stock_data.csv'  
+FS_Balance.to_csv(save_path, index=True) 
+
+## 4. Cash Flow
+url = f"https://stockanalysis.com/stocks/{ticker}/financials/cash-flow-statement/?p=quarterly" 
+response = requests.get(url, headers=headers)
+soup = BeautifulSoup(response.content, 'html.parser')
+element_tables = soup.select("table[data-test='financials']")
+
+Cash_df = pd.read_html(str(element_tables))[0] #'0번 테이블 뽑기
+Cash_df.to_csv(ticker+'.csv', index=False)
 
 FS_quater = df.transpose()
 FS_quater.columns = FS_quater.iloc[0]
@@ -167,11 +255,11 @@ FS_quater.index.name = "Date"
 FS_quater.to_csv(ticker+'.csv', index=True, encoding='euc-kr')
 
 
-save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\{ticker}_Tech_stock_data.csv'  
+save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\심화 loaded data\{ticker}_Tech_stock_data.csv'  
 FS_quater.to_csv(save_path, index=True) 
 
 
-###################################### Merge into Fundamental analysis data ###########################################
+#######################################################################################################
 
 '''
 ticker import pandas as pd
@@ -194,4 +282,3 @@ print(sector_df.head())
 merged_df = df1.merge(sector_df, on="Date", how="inner")
 print(merged_df.head())
 '''
-
