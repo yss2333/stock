@@ -18,6 +18,8 @@ df = pd.merge(df1[['Date', 'Real Price', 'Predicted Price']],
 
 df.columns = ['Date', 'Real Price', 'Stock_Pred', 'FS_Pred'] # Rename Column
 len(df)
+df
+
 
 # MinMax
 scaler = MinMaxScaler()
@@ -94,7 +96,7 @@ df_sorted = df.loc[date_val_idx].sort_values(by='Date') # 해당 인덱스 위�
 
 len(df_sorted)
 
-##################################################################### 정확도 평가 ##################################################################### 
+################################################################################ 정확도 평가 ######################################################################################################### 
 def calculate_mse(real, pred):
     return mean_squared_error(real, pred)
 
