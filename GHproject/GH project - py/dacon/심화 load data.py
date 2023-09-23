@@ -2,13 +2,13 @@
 import yfinance as yf
 from datetime import datetime
 
-ticker = 'tsla' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
+ticker = 'nvda' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
 start_date = '2020-01-02'
 end_date = '2023-09-08'
 # today = datetime.today().strftime('%Y-%m-%d') 
 
 stock_df = yf.download(ticker, start = start_date, end = end_date)
-save_path = f'/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/{ticker}_stock_data.csv'  
+save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\{ticker}_Tech_stock_data.csv'  
 stock_df.to_csv(save_path, index=True) 
 ########################################################### Add Technical Indicator to NA STOCK DATA ########################################################### 
 import pandas as pd
@@ -41,7 +41,7 @@ stock_df['OBV'] = ta.volume.on_balance_volume(stock_df['Close'], stock_df['Volum
 
 tech_df = stock_df
 
-save_path = f'/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/{ticker}_Tech_stock_data.csv'  
+save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\{ticker}_Tech_stock_data.csv'  
 tech_df.to_csv(save_path, index=True) 
 
 ########################################################### load Economic Indicator DATA ########################################################### 
@@ -131,7 +131,7 @@ for sector, sector_name in sectors.items():
 
 ETF = pd.concat(sector_data.values(), axis=1)
 
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/GICS_sector.csv'  
+save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\{ticker}_Tech_stock_data.csv'  
 ETF.to_csv(save_path, index=True) 
 
 ########################################################### load Company Indicator DATA ########################################################### 
@@ -167,7 +167,7 @@ FS_quater.index.name = "Date"
 FS_quater.to_csv(ticker+'.csv', index=True, encoding='euc-kr')
 
 
-save_path = f'/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/{ticker}_FS_quater.csv'  
+save_path = r'C:\Users\yss06\Desktop\python\stock\GHproject\GH project - py\dacon\{ticker}_Tech_stock_data.csv'  
 FS_quater.to_csv(save_path, index=True) 
 
 
@@ -194,3 +194,4 @@ print(sector_df.head())
 merged_df = df1.merge(sector_df, on="Date", how="inner")
 print(merged_df.head())
 '''
+
