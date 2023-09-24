@@ -10,36 +10,26 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
 
+
+tf.keras.backend.clear_session() # 메모리 초기화
 ticker = 'aapl'
 
 ## 1. Load data
-df1 = pd.read_csv(f'dacon/심화 loaded data/Econ_data.csv')
-df2 = pd.read_csv(f'dacon/심화 loaded data/Industry_data.csv')
+df = pd.read_csv(f'dacon/심화 loaded data/{ticker}_stock_Tech_data.csv')
 
-selected_columns = ['Date','Adj Close', '2-year', '5-year', '10-year', 'T10Y2Y', 'VIXCLS']
-df1 = df1[selected_columns]
 
-selected_columns = df2.columns[[0, 1, 3, 5, 9, 10]].tolist()
-df2 = df2[selected_columns]
-
-# 'Date' 열을 인덱스로 설정합니다.
-df1.set_index('Date', inplace=True)
-df2.set_index('Date', inplace=True)
-
-# 두 데이터프레임을 병합합니다.
-df = df1.combine_first(df2)
-
+## 2.1. Remove Outliers & Missing value
 df.isnull().sum() 
 df = df.dropna()
 df.isnull().sum() 
 
-
-## 2.2. Normalization - 목적: Gradient Boosting, 시간 단축, 예측력 향상
+## 2.2. Normalization
 scaler = MinMaxScaler()
-scale_cols = df.columns.tolist()
+scale_cols = ['Open', 'High', 'Low', 'Close','Adj Close','Volume',
+              'MA5','MA15','MA75','MA150', 'BOL_H', 'BOL_AVG', 'BOL_L',
+              'RSI', 'MACD', 'MACD_SIGNAL', 'OBV']
 scaled_df = scaler.fit_transform(df[scale_cols])
 scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
-scaled_df
 
 # Define Input Parameter: feature, label => numpy type
 def make_sequene_dataset(feature, label, window_size):
@@ -51,18 +41,19 @@ def make_sequene_dataset(feature, label, window_size):
     return np.array(feature_list), np.array(label_list) 
 
 # feature_df, label_df 생성
-feature_cols = df.columns.drop('Adj Close').tolist()
+feature_cols = ['Open', 'High', 'Low', 'Close','Volume',
+              'MA5','MA15','MA75','MA150', 'BOL_H', 'BOL_AVG', 'BOL_L',
+              'RSI', 'MACD', 'MACD_SIGNAL', 'OBV']
 label_cols = [ 'Adj Close' ]
 
 feature_df = pd.DataFrame(scaled_df, columns=feature_cols)
 label_df = pd.DataFrame(scaled_df, columns=label_cols)
 
-
 # DataFrame => Numpy 변환
 feature_np = feature_df.to_numpy()
 label_np = label_df.to_numpy()
 
-print(feature_np.shape, label_np.shape) # (2436, 43) (2436, 1)
+print(feature_np.shape, label_np.shape) # (2353, 16) (2353, 1)
 
 
 ## 3. Create data    
@@ -79,18 +70,19 @@ y_train = Y[0:split]
 x_test = X[split:]
 y_test = Y[split:]
 
-print(x_train.shape, y_train.shape) # (1946, 50, 8) (1946, 1)
-print(x_test.shape, y_test.shape) # (487, 50, 8) (487, 1)
+print(x_train.shape, y_train.shape) # (1961, 50, 5) (1961, 1)
+print(x_test.shape, y_test.shape) # (491, 50, 5) (491, 1)
 
-######################################################################################################################################################################################
 ## 4. Construct and Compile model
 
 # model 생성
 model = Sequential()
 
 model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True))  # return_sequences를 True로 설정하여 다음 LSTM 층으로 출력을 전달
+model.add(Dropout(0.2))  
 
-model.add(LSTM(64, activation='tanh'))
+model.add(LSTM(64, activation='relu'))
+model.add(Dropout(0.2))  
 
 model.add(Dense(1, activation='linear')) # 출력층
 model.compile(loss='mse', optimizer='adam', metrics=['mae'])
@@ -103,17 +95,16 @@ train_loss_history = []
 val_loss_history = []
 
 # model 학습 (checkpoint, earlystopping, reduceLR 적용)
-# save_best_only=tf.keras.callbacks.ModelCheckpoint(filepath="jonghee_test/price lstm_model.h5", monitor='val_loss', save_best_only=True) #가장 좋은 성능을 낸 val_loss가 적은 model만 남겨 놓았습니다.
+save_best_only=tf.keras.callbacks.ModelCheckpoint(filepath="jonghee_test/tech lstm_model.h5", monitor='val_loss', save_best_only=True) #가장 좋은 성능을 낸 val_loss가 적은 model만 남겨 놓았습니다.
 early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)
 reduceLR = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10) #검증 손실이 10epoch 동안 좋아지지 않으면 학습률을 0.1 배로 재구성하는 명령어입니다.
 
 hist = model.fit(x_train, y_train, 
           validation_data=(x_test, y_test),
           epochs=100, batch_size=128,        # 100번 학습 - loss가 점점 작아진다, 만약 100번의 학습을 다 하지 않더라도 loss 가 더 줄지 않는다면, 맞춰둔 조건에 따라 조기종료가 이루어진다
-          callbacks=[early_stop,  reduceLR]) #save_best_only ,
+          callbacks=[early_stop,  reduceLR]) # save_best_only ,
 
 pred = model.predict(x_test)
-
 
 ############################################################################ 평가지표 ##########################################################################################################
 # 평가지표 1: 예측 그래프
@@ -162,7 +153,7 @@ real_y_test = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc
 inverse_df['Adj Close'] = pred.flatten() # pred 역변환을 위한 임시 DataFrame
 real_pred = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Adj Close')]
 
-dates = df.index[split+window_size:].values # 해당 날짜 가져오기
+dates = df['Date'][split+window_size:].values # 해당 날짜 가져오기
 
 result_df = pd.DataFrame({
     'Date': dates,
@@ -172,7 +163,7 @@ result_df = pd.DataFrame({
 
 print(result_df)
 
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/econ+ind_result.csv'  # 파일 저장 경로 설정
+save_path = 'dacon/Full test/Tech_result.csv'  # 파일 저장 경로 설정
 result_df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장
 
 ## 진짜 예측값 추출하기
@@ -189,5 +180,4 @@ dummy_data = np.zeros((1, scaled_df.shape[1] - 1))
 predicted_new_full_features = np.hstack([predicted_new, dummy_data])
 
 predicted_new_original = scaler.inverse_transform(predicted_new_full_features)[0, 0]
-print(f"Predicted value for Next day: {predicted_new_original}") # 130.413
-
+print(f"Predicted value for Next day: {predicted_new_original}") # 169.733

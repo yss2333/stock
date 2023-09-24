@@ -1,3 +1,68 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+ticker = 'aapl'
+
+
+# 콘텐츠 1. FS 변수 고르고 보간법
+# 콘텐츠 2. 경제지표 보간법
+
+########################################################################################################################################################################################
+## 1. Load data
+Income = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Income.csv')
+Cash = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Cash.csv')
+Balance = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Balance.csv')
+Ratio = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Ratio.csv')
+
+# BPS
+Balance['BPS'] = Balance['Shareholders\' Equity'] / Income['Shares Outstanding (Basic)']
+
+# PBR
+Ratio['PBR'] = Ratio['Market Capitalization'] / (Balance['BPS'] * Income['Shares Outstanding (Basic)'])
+
+# The rest are already provided in the data:
+# PER is Ratio['PE Ratio']
+# EPS is Income['EPS (Basic)'] and Income['EPS (Diluted)']
+# DIV is Ratio['Dividend Yield']
+
+# DPS (This will be an approximation as we're not given dividends directly)
+# Assuming market price = Market Capitalization / Shares Outstanding (Basic)
+Balance['Market Price'] = Ratio['Market Capitalization'] / Income['Shares Outstanding (Basic)']
+Balance['DPS'] = Ratio['Dividend Yield'] * Balance['Market Price']
+
+# Extract the columns
+df = pd.DataFrame({
+    'Date': Balance['Date'],
+    'BPS': Balance['BPS'],
+    'PER': Ratio['PE Ratio'],
+    'PBR': Ratio['PBR'],
+    'EPS': Income['EPS (Diluted)'],
+    'DIV': Ratio['Dividend Yield'],
+    'DPS': Balance['DPS']
+})
+
+df = df.set_index('Date').sort_index()
+df.index = pd.to_datetime(df.index)
+itp_df = df.resample('D').asfreq() # 일일 데이터로 리샘플링
+df
+# 각 변수에 대해 선형 보간법 적용
+for column in itp_df.columns:
+    itp_df[column] = itp_df[column].interpolate(method='linear')
+
+# Add Adj Close
+stock = pd.read_csv(f'dacon/심화 loaded data/{ticker}_stock_Tech_data.csv')
+stock['Date'] = pd.to_datetime(stock['Date'])
+stock.set_index('Date', inplace=True)
+stock_selected = stock[['Close']]
+
+df = itp_df.merge(stock_selected, left_index=True, right_index=True, how='left')
+
+df = df.dropna()
+df.isnull().sum() # Now all missing value is dropped
+
+df
+
+###
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from pandas_datareader import data
@@ -14,17 +79,12 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
 
-# Load data
-df = pd.read_csv('data/full data.csv')
-selected_columns = ['Date', 'Close', 'BPS', 'PER', 'PBR', 'EPS', 'DIV', 'DPS']
-df = df[selected_columns]
-df
 
-df['Date'] = pd.to_datetime(df['Date'])
-#df.set_index('Date', inplace=True)
+
+# df.set_index('Date', inplace=True)
 
 df
-len(df) # 914
+
 
 ######################################################################################################################################################################################
 
@@ -34,15 +94,6 @@ len(df) # 914
 ##   - 1. Remove Outliers & Missing value 
 ##   - 2. Normalization & Standardization
 ##   - 3. Define Feature/Label column
-
-# Basic describe
-df.describe()
-df.isnull().sum() # Nothing detected
-df.isna().sum()
-# Remove Missing value 
-df = df.dropna()
-df.isnull().sum() # Now all missing value is dropped
-len(df)
 
 
 # Normalization (Date 제외한 모든 수치부분 정규화) - 목적: Gradient Boosting, 시간 단축, 예측력 향상
@@ -106,10 +157,8 @@ print(x_test.shape, y_test.shape) # (173, 50, 6) (173, 1)
 model = Sequential()
 
 model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True))  # return_sequences를 True로 설정하여 다음 LSTM 층으로 출력을 전달
-model.add(Dropout(0.2))  
 
 model.add(LSTM(64, activation='tanh'))
-model.add(Dropout(0.2))  
 
 model.add(Dense(1, activation='linear')) # 출력층
 model.compile(loss='mse', optimizer='adam', metrics=['mae'])
@@ -118,21 +167,26 @@ model.summary()
 
 
 
-# model 학습 (earlystopping 적용)
-early_stop = EarlyStopping(monitor='val_loss', patience=10)
+# 모델 학습 과정에서의 손실(loss) 값을 기록하기 위한 리스트
+train_loss_history = []
+val_loss_history = []
 
-# model checkpoint 추가?
+# model 학습 (checkpoint, earlystopping, reduceLR 적용)
+save_best_only=tf.keras.callbacks.ModelCheckpoint(filepath="jonghee_test/tech lstm_model.h5", monitor='val_loss', save_best_only=True) #가장 좋은 성능을 낸 val_loss가 적은 model만 남겨 놓았습니다.
+early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)
+reduceLR = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10) #검증 손실이 10epoch 동안 좋아지지 않으면 학습률을 0.1 배로 재구성하는 명령어입니다.
 
-model.fit(x_train, y_train, 
+hist = model.fit(x_train, y_train, 
           validation_data=(x_test, y_test),
           epochs=100, batch_size=16,        # 100번 학습 - loss가 점점 작아진다, 만약 100번의 학습을 다 하지 않더라도 loss 가 더 줄지 않는다면, 맞춰둔 조건에 따라 조기종료가 이루어진다
-          callbacks=[early_stop])
+          callbacks=[early_stop,  reduceLR]) # save_best_only ,
+
+pred = model.predict(x_test)
 ######################################################################################################################################################################################
 # Prediction with Visualization
-pred = model.predict(x_test)
 
 plt.figure(figsize=(12, 6))
-plt.title('SAMSUNG FS, window_size=40')
+plt.title('Predicted Price Based on FS ratio, window size = 50')
 plt.ylabel('Close')
 plt.xlabel('period')
 plt.plot(y_test, label='actual')
@@ -141,6 +195,24 @@ plt.grid()
 plt.legend(loc='best')
 
 plt.show()
+
+
+###
+# 평가지표 2: 학습곡선
+train_loss_history.extend(hist.history['loss']) # 학습 과정에서의 손실값(로스) 기록
+val_loss_history.extend(hist.history['val_loss'])
+
+plt.figure(figsize=(12, 6))
+plt.plot(train_loss_history, label='Training Loss')
+plt.plot(val_loss_history, label='Validation Loss')
+plt.legend()
+plt.title('Loss History')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.show()
+
+
+
 ######################################################################################################################################################################################
 # 평균절대값백분율오차계산 (MAPE)
 mape = np.sum(abs(y_test - pred) / y_test) / len(x_test)
@@ -169,7 +241,7 @@ inverse_df['Close'] = pred.flatten()
 real_pred = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Close')]
 
 # 해당 날짜 가져오기
-dates = df['Date'][split+window_size:].values
+dates = df.index[split+window_size:].values
 
 # 결과를 DataFrame으로 변환
 result_df = pd.DataFrame({
@@ -180,5 +252,5 @@ result_df = pd.DataFrame({
 
 print(result_df)
 
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/data/kr_fs_result.csv'  # 파일 저장 경로 설정
+save_path = 'dacon/Full test/FS_result.csv'  # 파일 저장 경로 설정
 result_df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장

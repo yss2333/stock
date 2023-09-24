@@ -9,18 +9,17 @@ import matplotlib.pyplot as plt
 # 1. Base Model Scaling:
 df1 = pd.read_csv('/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/Tech_stock_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
 df2 = pd.read_csv('/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/industry_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
-df3 = pd.read_csv('/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/econ_result.csv') # 새로 추가된 데이터
+df3 = pd.read_csv('/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/econ_result.csv') 
+
 
 df = pd.merge(df1[['Date', 'Real Price', 'Predicted Price']], 
               df2[['Date', 'Predicted Price']], 
               on='Date', how='inner', suffixes=('_stock', '_fs'))
+
 df = pd.merge(df, df3[['Date', 'Predicted Price']], 
               on='Date', how='inner')
 df.columns = ['Date', 'Real Price', 'Tech_Pred', 'Industry_Pred', 'Econ_Pred'] # Rename Column
 
-df1
-df2
-df3
 df
 
 # MinMax

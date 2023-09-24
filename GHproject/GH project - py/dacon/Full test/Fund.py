@@ -1,3 +1,4 @@
+from functools import reduce
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
@@ -10,28 +11,48 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
 
-ticker = 'aapl'
 
-## 1. Load data
-df1 = pd.read_csv(f'dacon/심화 loaded data/Econ_data.csv')
-df2 = pd.read_csv(f'dacon/심화 loaded data/Industry_data.csv')
+tf.keras.backend.clear_session() # 메모리 초기화
 
-selected_columns = ['Date','Adj Close', '2-year', '5-year', '10-year', 'T10Y2Y', 'VIXCLS']
-df1 = df1[selected_columns]
+# 1. Load Data
+Econ = pd.read_csv(f'dacon/심화 loaded data/Econ_data.csv')
+Industry = pd.read_csv(f'dacon/심화 loaded data/Industry_data.csv')
+Income = pd.read_csv(f'dacon/심화 loaded data/itp_Income.csv')
+Cash = pd.read_csv(f'dacon/심화 loaded data/itp_Cash.csv')
+Balance = pd.read_csv(f'dacon/심화 loaded data/itp_Balance.csv')
+Ratio = pd.read_csv(f'dacon/심화 loaded data/itp_Ratio.csv')
 
-selected_columns = df2.columns[[0, 1, 3, 5, 9, 10]].tolist()
-df2 = df2[selected_columns]
+# 1.1. Merge into master table
+Econ = Econ.drop('STLFSI3', axis=1)
 
-# 'Date' 열을 인덱스로 설정합니다.
-df1.set_index('Date', inplace=True)
-df2.set_index('Date', inplace=True)
+Econ.set_index('Date', inplace=True) # 'Date' 컬럼을 인덱스로 설정
+Industry.set_index('Date', inplace=True)
+Income.set_index('Date', inplace=True)
+Cash.set_index('Date', inplace=True)
+Balance.set_index('Date', inplace=True)
+Ratio.set_index('Date', inplace=True)
 
-# 두 데이터프레임을 병합합니다.
-df = df1.combine_first(df2)
+merged = Econ.drop(columns=['Adj Close'])\
+    .merge(Industry.drop(columns=['Adj Close']), left_index=True, right_index=True, how='inner')\
+    .merge(Income.drop(columns=['Adj Close']), left_index=True, right_index=True, how='inner')\
+    .merge(Cash.drop(columns=['Adj Close']), left_index=True, right_index=True, how='inner')\
+    .merge(Balance.drop(columns=['Adj Close']), left_index=True, right_index=True, how='inner')\
+    .merge(Ratio.drop(columns=['Adj Close']), left_index=True, right_index=True, how='inner')
 
+merged['Adj Close'] = Econ['Adj Close']  # Adj Close 값 추가 (아무 데이터프레임에서나 가져올 수 있습니다. 여기서는 Econ에서 가져옵니다.)
+df = merged
+
+cols = df.columns.tolist() # 컬럼 순서 변경
+cols.insert(0, cols.pop(cols.index('Adj Close')))
+df = df[cols]
+
+df
+
+## 2.1. Remove Outliers & Missing value
 df.isnull().sum() 
 df = df.dropna()
 df.isnull().sum() 
+
 
 
 ## 2.2. Normalization - 목적: Gradient Boosting, 시간 단축, 예측력 향상
@@ -89,8 +110,12 @@ print(x_test.shape, y_test.shape) # (487, 50, 8) (487, 1)
 model = Sequential()
 
 model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True))  # return_sequences를 True로 설정하여 다음 LSTM 층으로 출력을 전달
+ 
+model.add(LSTM(64, activation='relu'))
 
-model.add(LSTM(64, activation='tanh'))
+model.add(LSTM(32, activation='relu'))
+
+model.add(LSTM(16, activation='relu'))
 
 model.add(Dense(1, activation='linear')) # 출력층
 model.compile(loss='mse', optimizer='adam', metrics=['mae'])
@@ -172,7 +197,7 @@ result_df = pd.DataFrame({
 
 print(result_df)
 
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/econ+ind_result.csv'  # 파일 저장 경로 설정
+save_path = 'dacon/Full test/Fund_result.csv'  # 파일 저장 경로 설정
 result_df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장
 
 ## 진짜 예측값 추출하기
@@ -189,5 +214,4 @@ dummy_data = np.zeros((1, scaled_df.shape[1] - 1))
 predicted_new_full_features = np.hstack([predicted_new, dummy_data])
 
 predicted_new_original = scaler.inverse_transform(predicted_new_full_features)[0, 0]
-print(f"Predicted value for Next day: {predicted_new_original}") # 130.413
-
+print(f"Predicted value for Next day: {predicted_new_original}") # 137.427
