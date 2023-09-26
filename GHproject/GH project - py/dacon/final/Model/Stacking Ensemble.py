@@ -7,8 +7,8 @@ from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 
 # 1. Base Model Scaling:
-df1 = pd.read_csv('dacon/Full test/Tech_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
-df2 = pd.read_csv('dacon/Full test/FS_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
+df1 = pd.read_csv('dacon/final/Model result/Tech_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
+df2 = pd.read_csv('dacon/final/Model result/Funda_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
 
 df = pd.merge(df1[['Date', 'Real Price', 'Predicted Price']], 
                      df2[['Date', 'Predicted Price']],
@@ -17,10 +17,8 @@ df = pd.merge(df1[['Date', 'Real Price', 'Predicted Price']],
                      suffixes=('_Tech', '_Fund'))
 
 df.columns = ['Date', 'Real Price', 'Tech_Pred', 'Fund_Pred'] # Rename Column
-len(df)
-
+df = df.set_index('Date').sort_index()
 df
-
 
 # MinMax
 scaler = MinMaxScaler()
@@ -48,9 +46,6 @@ y_pred = meta_model.predict(X_val)
 
 # 5. Test MSE
 mse = mean_squared_error(y_val, y_pred)
-print(f"Mean Squared Error: {mse}")
-
-
 
 ##################################### VISUAL #########################################
 # 스케일링된 데이터에서 예측값 추출
@@ -60,7 +55,7 @@ tech_pred_original = scaler.inverse_transform(np.column_stack([np.zeros_like(y_p
 fund_pred_original = scaler.inverse_transform(np.column_stack([np.zeros_like(y_pred), np.zeros_like(y_pred), X_val[:, 1]]))[:, 2]
 
 # 날짜 데이터 추출
-date_train, date_val = train_test_split(df['Date'], test_size=0.2, random_state=42)
+date_train, date_val = train_test_split(df.index, test_size=0.2, random_state=42)
 
 
 # 그래프 그리기 준비
@@ -104,7 +99,7 @@ plt.show()
 # 2. 교차 검증
 from sklearn.model_selection import cross_val_score
 
-cross_val_mse = -cross_val_score(meta_model, X_stack, y_stack, cv=5, scoring='neg_mean_squared_error').mean()
+cross_val_mse = -cross_val_score(meta_model, X_stack, y_stack, cv=10, scoring='neg_mean_squared_error').mean()
 print(f"Cross Validation MSE: {cross_val_mse}")
 print(f"Mean Squared Error: {mse}")
 
@@ -134,14 +129,14 @@ plt.ylabel("Mean Squared Error")
 plt.legend(loc="best")
 plt.title("Learning Curve for Meta Model")
 plt.show()
-
+import os
+print(os.listdir('.'))
 
 ################################################################### 실제 다음날 예측 진행 ###################################################################################################
-from Tech import get_predicted_new_original
 
 # Tech와 Fund 모델로부터 얻은 다음 날의 예측 값을 표현하자면 다음과 같습니다:
-next_day_tech_pred = 179.693  # 여기에 Tech 모델로부터 얻은 다음 날 예측 값을 넣어주세요.
-next_day_fund_pred = 130.413  # 여기에 Fund 모델로부터 얻은 다음 날 예측 값을 넣어주세요.
+next_day_tech_pred = tech_predicted_new_original  # 여기에 Tech 모델로부터 얻은 다음 날 예측 값을 넣어주세요.
+next_day_fund_pred = fund_predicted_new_original  # 여기에 Fund 모델로부터 얻은 다음 날 예측 값을 넣어주세요.
 
 # 이 값을 스케일링 합니다:
 next_day_tech_pred_scaled = scaler.transform([[0, next_day_tech_pred, 0]])[0][1]  # 가격 부분만 스케일링
@@ -153,4 +148,14 @@ next_day_meta_pred_scaled = meta_model.predict(np.array([[next_day_tech_pred_sca
 # 예측 값을 원래의 스케일로 변환합니다:
 next_day_meta_pred = scaler.inverse_transform([[next_day_meta_pred_scaled, 0, 0]])[0][0]
 
-print(f"다음 날의 예측 가격은: {next_day_meta_pred}") # 191.213 
+last_date = pd.to_datetime(df.index[-1]) # df의 마지막 행의 날짜를 가져옴
+
+if last_date.weekday() == 4:  # 0: 월요일, 1: 화요일, ..., 4: 금요일
+    next_day = last_date + pd.Timedelta(days=3)  # 금요일에서 3일 후는 월요일
+else:
+    next_day = last_date + pd.Timedelta(days=1)  # 그 외의 경우에는 하루를 더함
+
+print(f"다음 날({next_day.strftime('%Y-%m-%d')})의 Tech 예측 가격은: {tech_predicted_new_original}") 
+print(f"다음 날({next_day.strftime('%Y-%m-%d')})의 Funda 예측 가격은: {fund_predicted_new_original}") 
+print(f"다음 날({next_day.strftime('%Y-%m-%d')})의 최종 예측 가격은: {next_day_meta_pred}") 
+

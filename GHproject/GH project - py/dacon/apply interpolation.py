@@ -14,11 +14,6 @@ Cash = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Cash.csv')
 Balance = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Balance.csv')
 Ratio = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Ratio.csv')
 
-Income.columns
-Cash.columns
-Balance.columns
-Ratio.columns
-
 # 변수가 너무 많은 관계로 출처 사이트에서 볼드체 된 변수들만 셀렉
 Income_columns = ['Date','Revenue', 'Gross Profit', 'Operating Income', 'Pretax Income', 'Net Income', 
                 'Shares Outstanding (Diluted)', 'EPS (Diluted)', 'Free Cash Flow', 'EBITDA', 'EBIT']
@@ -39,6 +34,29 @@ income.index = pd.to_datetime(income.index)
 cash.index = pd.to_datetime(cash.index)
 balance.index = pd.to_datetime(balance.index)
 ratio.index = pd.to_datetime(ratio.index)
+##########3
+import pandas as pd
+from statsmodels.tsa.holtwinters import SimpleExpSmoothing
+import numpy as np
+
+# 예측 범위 설정
+
+# 인덱스에 빈도를 추가
+income = income.asfreq('D')
+
+forecast_index = pd.date_range(start='2023-07-02', end='2023-09-08', freq='D')
+forecast_length = len(forecast_index)
+
+result = pd.DataFrame(index=forecast_index)
+
+for column in income.columns:
+    model = SimpleExpSmoothing(income[column].dropna()).fit(smoothing_level=0.2, optimized=False)
+    forecast = model.forecast(steps=forecast_length)
+    result[column] = forecast
+
+df = income.append(result)
+df
+
 
 # 보간법
 itp_income = income.resample('D').asfreq() # 일일 데이터로 리샘플링
