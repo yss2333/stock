@@ -14,12 +14,13 @@ ticker = 'aapl'
 
 ## 1. Load data
 df = pd.read_csv(f'dacon/심화 loaded data/Econ_data.csv')
-df
+df.set_index('Date', inplace=True)
+
 selected_columns = ['Adj Close', '2-year', '5-year', '10-year', 'T10Y2Y', 'VIXCLS']
 df = df[selected_columns]
 len(df) # 2502
-
-
+df
+print(df.index)
 ## 2.1. Remove Outliers & Missing value
 df.isnull().sum() 
 df = df.dropna()
@@ -79,12 +80,6 @@ print(x_test.shape, y_test.shape) # (491, 50, 5) (491, 1)
 model = Sequential()
 
 model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True))  # return_sequences를 True로 설정하여 다음 LSTM 층으로 출력을 전달
-model.add(Dropout(0.2))  
-
-model.add(LSTM(64, activation='tanh'))
-model.add(Dropout(0.2))  
-
-model.add(LSTM(64, activation='tanh'))
 model.add(Dropout(0.2))  
 
 model.add(LSTM(64, activation='tanh'))
@@ -167,19 +162,15 @@ print(metrics_df)
 
 
 #################################################################################### For stacking ####################################################################################
-
-# y_test 역변환을 위한 임시 DataFrame
-inverse_df = pd.DataFrame(np.zeros((len(y_test), len(scale_cols))), columns=scale_cols)
+inverse_df = pd.DataFrame(np.zeros((len(y_test), len(scale_cols))), columns=scale_cols) # y_test 역변환을 위한 임시 DataFrame
 inverse_df['Adj Close'] = y_test.flatten()
 real_y_test = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Adj Close')]
 
-# pred 역변환을 위한 임시 DataFrame
-inverse_df['Adj Close'] = pred.flatten()
+inverse_df['Adj Close'] = pred.flatten() # pred 역변환을 위한 임시 DataFrame
 real_pred = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Adj Close')]
-# 해당 날짜 가져오기
-dates = df['Date'][split+window_size:].values
 
-# 결과를 DataFrame으로 변환
+dates = df.index[split+window_size:].values # 해당 날짜 가져오기
+
 result_df = pd.DataFrame({
     'Date': dates,
     'Real Price': real_y_test,
@@ -187,6 +178,7 @@ result_df = pd.DataFrame({
 })
 
 print(result_df)
+
 
 save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/econ_result.csv'  # 파일 저장 경로 설정
 result_df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장

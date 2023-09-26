@@ -1,22 +1,7 @@
-'''
-# 사용방법: 
-1. 각 # 블록별로 save_path만 설정하면 됩니다. 경로 꼭 깃헙 레퍼지토리 - dacon/심화 loaded data 폴더에다가 저장해주세요.
-2. 처음 티커, 시작일, 종료일만 입력해주면 됩니다.
-
-
-# 사용변수목록: 
-Technical feature:          MA, Bollinger, RSI, MACD, OBV
-Fundamental feature
-    - Economic:             DXY, DGS, T10Y2Y, VIX, FSI
-    - Industry:             다우존스지수, S&P500, 나스닥, 러셀2000, etf 기반 산업별 수정종가 변화, etf 기반 산업별 거래량 변화
-    - Company:              재무제표
-
-'''
-
 # 0. 여기만 입력하세요.
 ticker = 'aapl' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
 start_date = '2013-09-28'
-end_date = '2023-09-08'
+end_date = '2023-06-30'
 
 ########################################################### Add Technical Indicator to NA STOCK DATA ########################################################### 
 import yfinance as yf
@@ -49,8 +34,7 @@ stock_df['MACD_SIGNAL']= ta.trend.macd_signal(stock_df['Close'])
 stock_df['OBV'] = ta.volume.on_balance_volume(stock_df['Close'], stock_df['Volume'])
 
 tech_df = stock_df
-
-save_path = f'/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/{ticker}_stock_Tech_data.csv'  
+save_path = f'dacon/심화 loaded data/{ticker}_stock_Tech_data.csv'  
 tech_df.to_csv(save_path, index=True) 
 
 ########################################################### load Economic Indicator DATA ########################################################### 
@@ -92,11 +76,37 @@ VIX.index.name = 'Date'
 FSI = fdr.DataReader('FRED:STLFSI3', start_date, end_date)
 FSI.index.name = 'Date'
 
+'''
+daily_FSI = FSI.resample('D').asfreq()
+daily_FSI.interpolate(method='linear', inplace=True)
+daily_FSI
+
+## GDP - 3달주기
+GDP = pd.DataFrame(fred.get_series('GDP',observation_start=start_date, observation_end = end_date),columns=['GDP'])
+GDP.index.name = 'Date'
+GDP
+
+## Unemplotment - 1달주기
+Unemployment_Rate = fdr.DataReader('FRED:UNRATE', start_date, end_date)
+Unemployment_Rate.index.name = 'Date'
+Unemployment_Rate
+
+## CPI - 1달주기
+CPI = fdr.DataReader('FRED:CPIAUCSL', start_date, end_date)
+CPI.index.name = 'Date'
+CPI
+
+## fedfunds 중앙은행 금리지표 - 1달주기
+FEDFUNDS = fdr.DataReader('FRED:FEDFUNDS', start_date, end_date)
+FEDFUNDS.index.name = 'Date'
+FEDFUNDS
+'''
+
 # 모든 결합된 데이터를 합침
 econ_df = adj_close_df.join([DGS, T10Y2Y, VIX, FSI], how='left')
 econ_df.dtypes # Check which Data types are object
 
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/Econ_data.csv'  
+save_path = f'dacon/심화 loaded data/Econ_data.csv'  
 econ_df.to_csv(save_path, index=True) 
 
 ########################################################### load Industry Indicator DATA ########################################################### 
@@ -150,6 +160,7 @@ for sector, sector_name in sectors.items():
     sector_data[sector] = data[[f'{sector_name} Adj Close', f'{sector_name} Volume']]
 
 ETF = pd.concat(sector_data.values(), axis=1)
+ETF
 
 ## Merge into industry data
 sector = yf.Ticker(ticker).info.get('sector', None)
@@ -160,6 +171,8 @@ Industry_df = Index_data.merge(sector_df, on="Date", how="inner")
 
 save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/Industry_data.csv'  
 Industry_df.to_csv(save_path, index=True) 
+
+########################################################### load Company Indicator DATA ########################################################### 
 ########################################################### load Company Indicator DATA ########################################################### 
 import yfinance as yf
 from pandas_datareader import data as pdr
@@ -185,6 +198,7 @@ element_tables = soup.select("table[data-test='financials']")
 Income_df = pd.read_html(str(element_tables))[0] #'0번 테이블 뽑기
 Income_df.to_csv(ticker+'.csv', index=False)
 
+
 FS_Income = Income_df.transpose()
 FS_Income.columns = FS_Income.iloc[0]
 FS_Income = Income_df.set_index("Quarter Ended").transpose()
@@ -199,7 +213,7 @@ for column in FS_Income.columns:
             FS_Income[column] = FS_Income[column].apply(lambda x: float(x.replace('%', '')) / 100 if '%' in x else x) # 퍼센트 기호가 있는 문자열 처리
         FS_Income[column] = pd.to_numeric(FS_Income[column], errors='coerce')  # 다른 문자열을 숫자로 변환
 
-save_path = f'/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/{ticker}_FS_Income.csv'  
+save_path = f'dacon/심화 loaded data/{ticker}_FS_Income.csv'  
 FS_Income.to_csv(save_path, index=True) 
 
 ## 2. RATIO STATEMENT
@@ -225,7 +239,7 @@ for column in FS_Ratio.columns:
             FS_Ratio[column] = FS_Ratio[column].apply(lambda x: float(x.replace('%', '')) / 100 if '%' in x else x) # 퍼센트 기호가 있는 문자열 처리       
         FS_Ratio[column] = pd.to_numeric(FS_Ratio[column], errors='coerce') # 다른 문자열을 숫자로 변환
 
-save_path = f'/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/{ticker}_FS_Ratio.csv'  
+save_path = f'dacon/심화 loaded data/{ticker}_FS_Ratio.csv'  
 FS_Ratio.to_csv(save_path, index=True) 
 
 ## 3. Balance Sheet
@@ -251,7 +265,7 @@ for column in FS_Balance.columns:
             FS_Balance[column] = FS_Balance[column].apply(lambda x: float(x.replace('%', '')) / 100 if '%' in x else x) # 퍼센트 기호가 있는 문자열 처리       
         FS_Balance[column] = pd.to_numeric(FS_Balance[column], errors='coerce') # 다른 문자열을 숫자로 변환
 
-save_path = f'/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/{ticker}_FS_Balance.csv'  
+save_path = f'dacon/심화 loaded data/{ticker}_FS_Balance.csv'  
 FS_Balance.to_csv(save_path, index=True) 
 
 ## 4. Cash Flow
@@ -277,9 +291,10 @@ for column in FS_Cash.columns:
             FS_Cash[column] = FS_Cash[column].apply(lambda x: float(x.replace('%', '')) / 100 if '%' in x else x) # 퍼센트 기호가 있는 문자열 처리       
         FS_Cash[column] = pd.to_numeric(FS_Cash[column], errors='coerce') # 다른 문자열을 숫자로 변환
 
-save_path = f'/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/{ticker}_FS_Cash.csv'  
+save_path = f'dacon/심화 loaded data/{ticker}_FS_Cash.csv'  
 FS_Cash.to_csv(save_path, index=True) 
 
 #######################################################################################################
+
 
 

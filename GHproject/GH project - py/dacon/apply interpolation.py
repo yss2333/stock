@@ -3,12 +3,21 @@ import matplotlib.pyplot as plt
 
 ticker = 'aapl'
 
+
+# 콘텐츠 1. FS 변수 고르고 보간법
+# 콘텐츠 2. 경제지표 보간법
+
+########################################################################################################################################################################################
 ## 1. Load data
 Income = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Income.csv')
 Cash = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Cash.csv')
 Balance = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Balance.csv')
 Ratio = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Ratio.csv')
 
+Income.columns
+Cash.columns
+Balance.columns
+Ratio.columns
 
 # 변수가 너무 많은 관계로 출처 사이트에서 볼드체 된 변수들만 셀렉
 Income_columns = ['Date','Revenue', 'Gross Profit', 'Operating Income', 'Pretax Income', 'Net Income', 
@@ -19,23 +28,23 @@ Cash_columns = ['Date','Net Income', 'Operating Cash Flow', 'Investing Cash Flow
 Balance_columns =['Date','Cash & Cash Equivalents', 'Total Current Assets', 'Total Long-Term Assets', 'Total Assets', 
                   'Total Current Liabilities', 'Total Long-Term Liabilities', 'Total Liabilities', 'Total Debt']
 
-income = Income[Income_columns]
-cash = Cash[Cash_columns]
-balance = Balance[Balance_columns]
+Ratio_colums = ['Date','Market Capitalization', 'PE Ratio', 'PS Ratio', 'PB Ratio', 'Current Ratio' ]
 
 income = Income[Income_columns].set_index('Date').sort_index()
 cash = Cash[Cash_columns].set_index('Date').sort_index()
 balance = Balance[Balance_columns].set_index('Date').sort_index()
+ratio = Ratio[Ratio_colums].set_index('Date').sort_index()
 
 income.index = pd.to_datetime(income.index)
 cash.index = pd.to_datetime(cash.index)
 balance.index = pd.to_datetime(balance.index)
-
+ratio.index = pd.to_datetime(ratio.index)
 
 # 보간법
 itp_income = income.resample('D').asfreq() # 일일 데이터로 리샘플링
 itp_cash = cash.resample('D').asfreq() # 일일 데이터로 리샘플링
 itp_balance = balance.resample('D').asfreq() # 일일 데이터로 리샘플링
+itp_ratio = ratio.resample('D').asfreq() # 일일 데이터로 리샘플링
 
 # 각 변수에 대해 선형 보간법 적용
 for column in itp_income.columns:
@@ -47,6 +56,14 @@ for column in itp_cash.columns:
 for column in itp_balance.columns:
     itp_balance[column] = itp_balance[column].interpolate(method='linear')
 
+for column in itp_ratio.columns:
+    itp_ratio[column] = itp_ratio[column].interpolate(method='linear')
+
+itp_income
+###
+# 이러고 일단 가격 붙여 (데이터 늘려야하니까)
+
+###
 # Add Adj Close
 stock = pd.read_csv(f'dacon/심화 loaded data/{ticker}_stock_Tech_data.csv')
 stock['Date'] = pd.to_datetime(stock['Date'])
@@ -56,32 +73,54 @@ stock_selected = stock[['Adj Close']]
 itp_Income_df = itp_income.merge(stock_selected, left_index=True, right_index=True, how='left')
 itp_Cash_df = itp_cash.merge(stock_selected, left_index=True, right_index=True, how='left')
 itp_Balance_df = itp_balance.merge(stock_selected, left_index=True, right_index=True, how='left')
+itp_ratio_df = itp_ratio.merge(stock_selected, left_index=True, right_index=True, how='left')
 
-itp_Income_df = itp_Income_df.dropna()
-itp_Income_df.isnull().sum() # Now all missing value is dropped
-
-itp_Cash_df = itp_Cash_df.dropna()
-itp_Cash_df.isnull().sum() # Now all missing value is dropped
-
-itp_Balance_df = itp_Balance_df.dropna()
-itp_Balance_df.isnull().sum() # Now all missing value is dropped
+itp_Income_df = itp_Income_df.dropna(subset=['Adj Close'])
+itp_Cash_df = itp_Cash_df.dropna(subset=['Adj Close'])
+itp_Balance_df = itp_Balance_df.dropna(subset=['Adj Close'])
+itp_ratio_df = itp_ratio_df.dropna(subset=['Adj Close'])
 
 
-len(itp_Income_df)
-len(itp_Cash_df)
-len(itp_Balance_df)
+'''
+# 여기는 지수평활(exponential smoothing)
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+
+# 데이터 프레임 리스트
+dfs = [itp_Income_df, itp_Cash_df, itp_Balance_df, itp_ratio_df]
+
+# 각 데이터 프레임에 대해 지수평활 모델 적용 및 NaN 값 예측
+
+'''
+####
+
+save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/itp_Income.csv'  
+itp_Income_df.to_csv(save_path, index=True) 
+
+save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/itp_Cash.csv'  
+itp_Cash_df.to_csv(save_path, index=True) 
+
+save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/itp_Balance.csv'  
+itp_Balance_df.to_csv(save_path, index=True) 
+
+save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/itp_Ratio.csv'  
+itp_ratio_df.to_csv(save_path, index=True) 
 
 ########################### 진짜 테스트
-# itp_Income_df, itp_Cash_df, itp_Balance_df의 날짜를 기준으로 병합
-df = itp_Income_df.merge(itp_Cash_df, left_index=True, right_index=True, how='inner')
-df = df.merge(itp_Balance_df, left_index=True, right_index=True, how='inner')
+from functools import reduce
 
-# 'Adj Close' 컬럼이 중복되면 중복된 컬럼을 삭제
-columns_to_drop = [col for col in df.columns if col != 'Adj Close' and col.endswith('Adj Close')]
-df.drop(columns=columns_to_drop, inplace=True)
+dataframes = [itp_Income_df, itp_Cash_df, itp_Balance_df, itp_ratio_df]
+df = reduce(lambda left, right: pd.merge(left, right, left_index=True, right_index=True, how='inner'), dataframes)
+df = df.loc[:,~df.columns.duplicated()]
+
+df.drop(columns=['Adj Close_y'], inplace=True)
+df.rename(columns={'Adj Close_x': 'Adj Close'}, inplace=True)
+
+# 컬럼 순서 변경
+cols = df.columns.tolist()
+cols.insert(0, cols.pop(cols.index('Adj Close')))
+df = df[cols]
 
 df
-
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -156,7 +195,13 @@ model = Sequential()
 model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True))  # return_sequences를 True로 설정하여 다음 LSTM 층으로 출력을 전달
 model.add(Dropout(0.2))  
 
-model.add(LSTM(64, activation='tanh'))
+model.add(LSTM(64, activation='relu'))
+model.add(Dropout(0.2))  
+
+model.add(LSTM(64, activation='relu'))
+model.add(Dropout(0.2))  
+
+model.add(LSTM(64, activation='relu'))
 model.add(Dropout(0.2))  
 
 model.add(Dense(1, activation='linear')) # 출력층
@@ -237,7 +282,7 @@ real_y_test = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc
 inverse_df['Adj Close'] = pred.flatten()
 real_pred = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Adj Close')]
 # 해당 날짜 가져오기
-dates = df['Date'][split+window_size:].values
+dates = df.index[split+window_size:].values
 
 # 결과를 DataFrame으로 변환
 result_df = pd.DataFrame({
@@ -248,7 +293,7 @@ result_df = pd.DataFrame({
 
 print(result_df)
 
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/jonghee_test/FS_result.csv'  # 파일 저장 경로 설정
+save_path = 'dacon/Full test/FS_result.csv'  # 파일 저장 경로 설정
 result_df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장
 
 ######################### 스태킹
@@ -261,17 +306,155 @@ from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 
 # 1. Base Model Scaling:
-df1 = pd.read_csv('/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/Tech_stock_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
-df2 = pd.read_csv('/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_testFS_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
+df1 = pd.read_csv('dacon/Full test/Tech_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
+df2 = pd.read_csv('dacon/Full test/FS_result.csv') # 2023-02-14 ~ 2023-09-08 # 143 prediction
 
-df1
-df2
+# 'Unnamed: 0' 컬럼 제거
+df1.drop('Unnamed: 0', axis=1, inplace=True)
+df2.drop('Unnamed: 0', axis=1, inplace=True)
+
+df = pd.merge(df1[['Date', 'Real Price', 'Predicted Price']], 
+                     df2[['Date', 'Predicted Price']],
+                     on='Date', 
+                     how='inner', 
+                     suffixes=('_stock', '_fs'))
+
+df.columns = ['Date', 'Real Price', 'Stock_Pred', 'FS_Pred'] # Rename Column
+len(df)
+df
+
+# MinMax
+scaler = MinMaxScaler()
+scale_cols = ['Real Price', 'Stock_Pred', 'FS_Pred']
+scaled_df = scaler.fit_transform(df[scale_cols])
+scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
+
+print(scaled_df)
+
+# 2. Create Feature/Label for Stacking model
+X_stack = scaled_df[['Stock_Pred', 'FS_Pred']].values
+y_stack = scaled_df['Real Price'].values
+
+# Data split (20% test)
+X_train, X_val, y_train, y_val = train_test_split(X_stack, y_stack, test_size=0.2, random_state=42)
+
+# 3. Meta model training
+meta_model = LinearRegression()
+meta_model.fit(X_train, y_train)
+
+# 4. Meta model Predicting
+
+y_pred = meta_model.predict(X_val)
+
+
+# 5. Test MSE
+mse = mean_squared_error(y_val, y_pred)
+print(f"Mean Squared Error: {mse}")
+
+##################################### VISUAL #########################################
+
+# 스케일링된 데이터에서 예측값 추출
+y_val_original = scaler.inverse_transform(np.column_stack([y_val, np.zeros_like(y_val), np.zeros_like(y_val)]))[:, 0]
+y_pred_original = scaler.inverse_transform(np.column_stack([y_pred, np.zeros_like(y_pred), np.zeros_like(y_pred)]))[:, 0]
+stock_pred_original = scaler.inverse_transform(np.column_stack([np.zeros_like(y_pred), X_val[:, 0], np.zeros_like(y_pred)]))[:, 1]
+fs_pred_original = scaler.inverse_transform(np.column_stack([np.zeros_like(y_pred), np.zeros_like(y_pred), X_val[:, 1]]))[:, 2]
+
+# 날짜 데이터 추출
+date_train, date_val = train_test_split(df['Date'], test_size=0.2, random_state=42)
+
+
+# 그래프 그리기 준비
+plt.figure(figsize=(12, 6))
+
+plot_df = pd.DataFrame({ # 날짜를 정렬하기 위해 DataFrame을 사용
+    'Date': date_val,
+    'Real Price': y_val_original,
+    'Meta Predicted Price': y_pred_original,
+    'Stock Predicted Price': stock_pred_original,
+    'FS Predicted Price': fs_pred_original
+})
+
+
+plt.plot(plot_df['Date'], plot_df['Real Price'], label='Real Price', linewidth=2)
+plt.plot(plot_df['Date'], plot_df['Meta Predicted Price'], label='Meta Predicted Price', linewidth=1.5)
+plt.plot(plot_df['Date'], plot_df['Stock Predicted Price'], '--', label='Stock Predicted Price', linewidth=1.5)
+plt.plot(plot_df['Date'], plot_df['FS Predicted Price'], '--', label='FS Predicted Price', linewidth=1.5)
+plot_df = plot_df.sort_values(by='Date')  # 날짜로 정렬
+dates = plot_df['Date'].tolist()
+num_dates = len(dates)
+interval = num_dates // 10  # 전체 날짜 수를 10으로 나눠서 10개의 눈금만 표시하도록 함. 필요에 따라 값을 조절할 수 있음.
+
+plt.xticks(dates[::interval], rotation=45)  # 
+plt.title("Prediction vs Actual Price")
+plt.legend()
+plt.grid(True)
+plt.xticks(rotation=45)
+plt.tight_layout()  # 그래프가 잘 보이도록 레이아웃 조정
+plt.show()
 
 
 
 
+################################################################################################################################################################################3
+from sklearn.model_selection import learning_curve
+
+# 학습 곡선 데이터 얻기
+train_sizes, train_scores, val_scores = learning_curve(
+    meta_model, X_stack, y_stack, cv=5,
+    train_sizes=np.linspace(0.1, 1.0, 10), scoring="neg_mean_squared_error"
+)
+
+# 평균 및 표준 편차 계산
+train_scores_mean = -train_scores.mean(axis=1)
+train_scores_std = train_scores.std(axis=1)
+val_scores_mean = -val_scores.mean(axis=1)
+val_scores_std = val_scores.std(axis=1)
+
+# 학습 곡선 시각화
+plt.figure(figsize=(10, 5))
+plt.fill_between(train_sizes, train_scores_mean - train_scores_std, 
+                 train_scores_mean + train_scores_std, alpha=0.1, color="r")
+plt.fill_between(train_sizes, val_scores_mean - val_scores_std,
+                 val_scores_mean + val_scores_std, alpha=0.1, color="g")
+plt.plot(train_sizes, train_scores_mean, 'o-', color="r", label="Training score")
+plt.plot(train_sizes, val_scores_mean, 'o-', color="g", label="Cross-validation score")
+plt.xlabel("Training examples")
+plt.ylabel("Mean Squared Error")
+plt.legend(loc="best")
+plt.title("Learning Curve for Meta Model")
+plt.show()
+################################################################################################################################################################################3
+
+# 1. 마지막 50일 데이터 추출
+last_50_days_feature = feature_np[-window_size:]
+last_50_days_feature = last_50_days_feature.reshape(1, window_size, -1)
+
+# 2. 모델에 입력값 전달 및 예측
+predicted_9th = model.predict(last_50_days_feature)
+
+# 스케일링 되돌리기 (inverse scaling)
+predicted_9th_original = scaler.inverse_transform(np.column_stack([predicted_9th, np.zeros_like(predicted_9th), ...]))[0, 0]
+
+print(f"Predicted value for 2023-09-09: {predicted_9th_original}")
 
 
+# 이 예제에서는 이미 base model의 예측값이 df1, df2에 있다고 가정하였습니다.
+stock_pred_9th = df1.loc[df1['Date'] == '2023-09-08', 'Predicted Price'].values[0]
+fs_pred_9th = df2.loc[df2['Date'] == '2023-09-08', 'Predicted Price'].values[0]
+
+# 스케일링
+scaled_input = scaler.transform([[0, stock_pred_9th, fs_pred_9th]])  # 0은 실제 가격을 나타내는 임시 값입니다.
+scaled_stock_pred = scaled_input[0, 1]
+scaled_fs_pred = scaled_input[0, 2]
+
+# 2. 스태킹 모델로 예측
+meta_input = np.array([[scaled_stock_pred, scaled_fs_pred]])
+meta_pred = meta_model.predict(meta_input)
+
+# 스케일 역변환
+predicted_price_9th = scaler.inverse_transform(np.column_stack([meta_pred, np.zeros_like(meta_pred), np.zeros_like(meta_pred)]))[0, 0]
+
+print(f"Predicted price for 9th September: {predicted_price_9th}")
 
 
 # 그래프로 보간법과 오리지널 데이터 변수별 비교

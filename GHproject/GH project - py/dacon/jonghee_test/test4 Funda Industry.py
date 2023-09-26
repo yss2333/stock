@@ -14,8 +14,9 @@ ticker = 'aapl'
 
 ## 1. Load data
 df = pd.read_csv(f'dacon/심화 loaded data/Industry_data.csv')
+df.set_index('Date', inplace=True)
 
-selected_columns = df.columns[[1, 3, 5, 7, 9, 10]].tolist()
+selected_columns = df.columns[[0, 2, 4, 6, 8, 9]].tolist()
 df = df[selected_columns]
 len(df) # 2502
 df
@@ -25,10 +26,10 @@ df.isnull().sum()
 df = df.dropna()
 df.isnull().sum() # Now all missing value is dropped
 
-
+df
 ## 2.2. Normalization - 목적: Gradient Boosting, 시간 단축, 예측력 향상
 scaler = MinMaxScaler()
-scale_cols = df.columns[[1,2,3,4,5]].tolist()
+scale_cols = df.columns[[0,1,2,3,4,5]].tolist()
 
 scaled_df = scaler.fit_transform(df[scale_cols])
 scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
@@ -43,7 +44,7 @@ def make_sequene_dataset(feature, label, window_size):
     return np.array(feature_list), np.array(label_list) 
 
 # feature_df, label_df 생성
-feature_cols = df.columns[[1,2,3,5]].tolist()
+feature_cols = df.columns.drop('Adj Close').tolist()
 label_cols = [ 'Adj Close' ]
 
 feature_df = pd.DataFrame(scaled_df, columns=feature_cols)
@@ -87,12 +88,6 @@ model.add(Dropout(0.2))
 
 model.add(LSTM(32, activation='tanh'))
 model.add(Dropout(0.2))  
-
-model.add(LSTM(32, activation='tanh'))
-model.add(Dropout(0.2)) 
-
-model.add(LSTM(32, activation='tanh'))
-model.add(Dropout(0.2)) 
 
 model.add(LSTM(16, activation='tanh'))
 model.add(Dropout(0.2))  
@@ -171,18 +166,15 @@ print(metrics_df)
 
 
 #################################################################################### For stacking ####################################################################################
-# y_test 역변환을 위한 임시 DataFrame
-inverse_df = pd.DataFrame(np.zeros((len(y_test), len(scale_cols))), columns=scale_cols)
+inverse_df = pd.DataFrame(np.zeros((len(y_test), len(scale_cols))), columns=scale_cols) # y_test 역변환을 위한 임시 DataFrame
 inverse_df['Adj Close'] = y_test.flatten()
 real_y_test = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Adj Close')]
 
-# pred 역변환을 위한 임시 DataFrame
-inverse_df['Adj Close'] = pred.flatten()
+inverse_df['Adj Close'] = pred.flatten() # pred 역변환을 위한 임시 DataFrame
 real_pred = scaler.inverse_transform(inverse_df)[:, inverse_df.columns.get_loc('Adj Close')]
-# 해당 날짜 가져오기
-dates = df['Date'][split+window_size:].values
 
-# 결과를 DataFrame으로 변환
+dates = df.index[split+window_size:].values # 해당 날짜 가져오기
+
 result_df = pd.DataFrame({
     'Date': dates,
     'Real Price': real_y_test,
@@ -190,6 +182,7 @@ result_df = pd.DataFrame({
 })
 
 print(result_df)
+
 
 save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/industry_result.csv'  # 파일 저장 경로 설정
 result_df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장
