@@ -1,3 +1,4 @@
+# 0. 저장공간 초기화
 import os
 def delete_files_in_directory(directory):
     files_in_directory = os.listdir(directory)
@@ -7,22 +8,32 @@ def delete_files_in_directory(directory):
             os.remove(file_path)
 delete_files_in_directory('dacon/final/Loaded data/')
 delete_files_in_directory('dacon/final/Model result/')
-
-
 ########################################################
-# 0. 여기만 입력하세요.
-ticker = 'nvda' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
+# 1. 여기만 입력하세요.
+ticker = 'aapl' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
 start_date = '2013-09-28'
 end_date = '2023-09-09'
 ########################################################
+# 2. 순차적으로 모델 돌리기
+filenames = ['dacon/final/Load Data.py',
+             'dacon/final/Model/Technical analysis.py', 
+             'dacon/final/Model/Fundamental analysis.py',              
+             'dacon/final/Model/Stacking Ensemble.py']
+
+for filename in filenames:
+    with open(filename, 'r') as file:
+        exec(file.read())
+    
 '''
 사용 설명서
 
 Try.py 를 실행하게되면 예측을 하려는 나스닥 상장회사에 대한 Ticker 와 Start Date, End Date 를 입력해주세요 (소문자로 입력해야 합니다.)
 나머지는 자동입니다. Try.py 전체코드를 실행만 시키세요. (맨 위 코드는 다른 기업에 대한 데이터를 불러올때 빈 폴더에 담기도록 하기 위함입니다. 그냥 진행시켜 주세요.)
 
-# 경로는 Load Data.py 에 327번 라인에서 한번에 설정할 수 있습니다. 
+# 경로는 Load Data.py의 327번 라인과
+       Try.py의 36번 라인에서 한번에 설정할 수 있습니다. 
 
+# 개별 파일로 돌리게 되면 0번에 대한 정보가 없기 때문에 에러가 뜹니다. 주의!
 
 Load data -> Technical과 Fundamental 에 대한 LSTM 모델 -> 앙상블 모델 순으로 진행이 됩니다.
 
@@ -33,12 +44,4 @@ Load data -> Technical과 Fundamental 에 대한 LSTM 모델 -> 앙상블 모델
 '''
 
 
-filenames = ['dacon/final/Load Data.py',
-             'dacon/final/Model/Technical analysis.py', 
-             'dacon/final/Model/Fundamental analysis.py',              
-             'dacon/final/Model/Stacking Ensemble.py']
 
-for filename in filenames:
-    with open(filename, 'r') as file:
-        exec(file.read())
-    

@@ -103,8 +103,8 @@ pred = model.predict(x_test)
 ############################################################################ 평가지표 ##########################################################################################################
 # 평가지표 1: 예측 그래프
 plt.figure(figsize=(12, 6))
-plt.title('Predict Adj Close based on Stock Price Only, window_size=50')
-plt.ylabel('Close')
+plt.title('Technical analysis Prediction model')
+plt.ylabel('Adj Close')
 plt.xlabel('period')
 plt.plot(y_test, label='actual')
 plt.plot(pred, label='prediction')

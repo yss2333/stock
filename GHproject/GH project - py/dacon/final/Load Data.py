@@ -1,6 +1,3 @@
-ticker = 'nvda' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
-start_date = '2013-09-28'
-end_date = '2023-09-09'
 ########################################################### Add Technical Indicator to NA STOCK DATA ########################################################### 
 from datetime import datetime
 import numpy as np

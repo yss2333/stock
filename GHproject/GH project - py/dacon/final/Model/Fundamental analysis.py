@@ -121,7 +121,7 @@ pred = model.predict(x_test)
 ############################################################################ 평가지표 ##########################################################################################################
 # 평가지표 1: 예측 그래프
 plt.figure(figsize=(12, 6))
-plt.title('Predict Adj Close based on Stock Price Only, window_size=50')
+plt.title('Fundamental analysis Prediction model')
 plt.ylabel('Close')
 plt.xlabel('period')
 plt.plot(y_test, label='actual')
@@ -202,7 +202,7 @@ fund_predicted_new_original = scaler.inverse_transform(inverse_df_temp)[:, inver
 # Convert numpy array value to scalar
 fund_predicted_new_original = fund_predicted_new_original.item()
 
-fund_predicted_new_original
+
 
 
 
