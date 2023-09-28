@@ -13,9 +13,17 @@ from tensorflow.keras.callbacks import EarlyStopping
 ticker = 'aapl'
 
 ## 1. Load data
-df = pd.read_csv(f'dacon/심화 loaded data/{ticker}_stock_Tech_data.csv')
+df = pd.read_csv(f'GHproject\GH project - py\dacon\심화 loaded data\{ticker}_stock_Tech_data.csv')
 df
 len(df) # 2502
+
+## Correlation으로 필요없는 지표 컷
+df.drop(columns=['RSI'], inplace=True)
+df.drop(columns=['OBV'], inplace=True)
+df.drop(columns=['MACD'], inplace=True)
+df.drop(columns=['MACD_SIGNAL'], inplace=True)
+df.drop(columns=['Volume'], inplace=True)
+
 
 
 ## 2.1. Remove Outliers & Missing value
@@ -26,9 +34,10 @@ df.isnull().sum() # Now all missing value is dropped
 
 ## 2.2. Normalization - 목적: Gradient Boosting, 시간 단축, 예측력 향상
 scaler = MinMaxScaler()
-scale_cols = ['Open', 'High', 'Low', 'Close','Adj Close','Volume',
-              'MA5','MA15','MA75','MA150', 'BOL_H', 'BOL_AVG', 'BOL_L',
-              'RSI', 'MACD', 'MACD_SIGNAL', 'OBV']
+scale_cols = ['Open', 'High', 'Low', 'Close','Adj Close',
+              'EMA5','EMA20','EMA60','EMA120','MA5','MA20','MA60','MA120',
+              'BOL_H1', 'BOL_AVG', 'BOL_L1','BOL_H2','BOL_L2'
+              ]
 scaled_df = scaler.fit_transform(df[scale_cols])
 scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
 
@@ -42,9 +51,9 @@ def make_sequene_dataset(feature, label, window_size):
     return np.array(feature_list), np.array(label_list) 
 
 # feature_df, label_df 생성
-feature_cols = ['Open', 'High', 'Low', 'Close','Volume',
-              'MA5','MA15','MA75','MA150', 'BOL_H', 'BOL_AVG', 'BOL_L',
-              'RSI', 'MACD', 'MACD_SIGNAL', 'OBV']
+feature_cols = ['Open', 'High', 'Low', 'Close','MA5','MA20','MA60','MA120',
+              'EMA5','EMA20','EMA60','EMA120',
+              'BOL_H1', 'BOL_AVG', 'BOL_L1','BOL_H2','BOL_L2']
 label_cols = [ 'Adj Close' ]
 
 feature_df = pd.DataFrame(scaled_df, columns=feature_cols)
@@ -59,7 +68,7 @@ print(feature_np.shape, label_np.shape) # (2353, 16) (2353, 1)
 
 ## 3. Create data    
 # 3.1. Set window size
-window_size = 50
+window_size = 30
 X, Y = make_sequene_dataset(feature_np, label_np, window_size)
 print(X.shape, Y.shape) # (2452, 50, 5) (2452, 1)
 
@@ -81,11 +90,9 @@ print(x_test.shape, y_test.shape) # (491, 50, 5) (491, 1)
 model = Sequential()
 
 model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True))  # return_sequences를 True로 설정하여 다음 LSTM 층으로 출력을 전달
-model.add(Dropout(0.2))  
-
+ 
 model.add(LSTM(64, activation='relu'))
-model.add(Dropout(0.2))  
-
+ 
 model.add(Dense(1, activation='linear')) # 출력층
 model.compile(loss='mse', optimizer='adam', metrics=['mae'])
 
@@ -99,12 +106,12 @@ val_loss_history = []
 # model 학습 (checkpoint, earlystopping, reduceLR 적용)
 save_best_only=tf.keras.callbacks.ModelCheckpoint(filepath="jonghee_test/tech lstm_model.h5", monitor='val_loss', save_best_only=True) #가장 좋은 성능을 낸 val_loss가 적은 model만 남겨 놓았습니다.
 early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)
-reduceLR = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10) #검증 손실이 10epoch 동안 좋아지지 않으면 학습률을 0.1 배로 재구성하는 명령어입니다.
+#reduceLR = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10) #검증 손실이 10epoch 동안 좋아지지 않으면 학습률을 0.1 배로 재구성하는 명령어입니다.
 
 hist = model.fit(x_train, y_train, 
           validation_data=(x_test, y_test),
           epochs=100, batch_size=128,        # 100번 학습 - loss가 점점 작아진다, 만약 100번의 학습을 다 하지 않더라도 loss 가 더 줄지 않는다면, 맞춰둔 조건에 따라 조기종료가 이루어진다
-          callbacks=[early_stop,  reduceLR]) # save_best_only ,
+          callbacks=[early_stop]) # save_best_only ,
 
 pred = model.predict(x_test)
 
