@@ -110,7 +110,7 @@ early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)
 
 hist = model.fit(x_train, y_train, 
           validation_data=(x_test, y_test),
-          epochs=100, batch_size=128,        # 100번 학습 - loss가 점점 작아진다, 만약 100번의 학습을 다 하지 않더라도 loss 가 더 줄지 않는다면, 맞춰둔 조건에 따라 조기종료가 이루어진다
+          epochs=100, batch_size=150,        # 100번 학습 - loss가 점점 작아진다, 만약 100번의 학습을 다 하지 않더라도 loss 가 더 줄지 않는다면, 맞춰둔 조건에 따라 조기종료가 이루어진다
           callbacks=[early_stop]) # save_best_only ,
 
 pred = model.predict(x_test)
@@ -190,3 +190,16 @@ print(result_df)
 
 save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/jonghee_test/Tech_stock_result.csv'  # 파일 저장 경로 설정
 result_df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장
+
+recent_feature = feature_np[-window_size:]
+recent_feature = recent_feature.reshape(1, window_size, -1)
+
+# 2. Predict the value for '2023-09-09'
+predicted_new = model.predict(recent_feature)
+
+# 3. Inverse transform the predicted value to its original scale
+dummy_data = np.zeros((1, scaled_df.shape[1] - 1))
+predicted_new_full_features = np.hstack([predicted_new, dummy_data])
+
+predicted_new_original = scaler.inverse_transform(predicted_new_full_features)[0, 0]
+print(f"Predicted value for Next day: {predicted_new_original}")

@@ -1,7 +1,7 @@
 # 0. 여기만 입력하세요.
 ticker = 'aapl' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
 start_date = '2013-09-28'
-end_date = '2023-09-09'
+end_date = '2023-09-08'
 
 ########################################################### Add Technical Indicator to NA STOCK DATA ########################################################### 
 from datetime import datetime
@@ -94,7 +94,7 @@ stock_df['OBV'] = ta.volume.on_balance_volume(stock_df['Adj Close'], stock_df['V
 
 
 tech_df = stock_df
-save_path = f'dacon/심화 loaded data/{ticker}_stock_Tech_data.csv'  
+save_path = f'GHproject\GH project - py\dacon\심화 loaded data\{ticker}_stock_Tech_data.csv'  
 tech_df.to_csv(save_path, index=True) 
 
 ########################################################### load Economic Indicator DATA ########################################################### 
