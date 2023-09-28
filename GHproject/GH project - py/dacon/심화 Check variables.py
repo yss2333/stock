@@ -17,10 +17,10 @@ import seaborn as sns
 7 - 기업데이터 - Ratio
 '''
 
-ticker = 'tsla'
+ticker = 'aapl'
 
 ##### Technical
-stock_tech_df = pd.read_csv(f'dacon/심화 loaded data/{ticker}_stock_Tech_data.csv')
+stock_tech_df = pd.read_csv(f'GHproject\GH project - py\dacon\심화 loaded data\{ticker}_stock_Tech_data.csv')
 
 # 1.1. Check Scatterplot against Adj Close
 features = [col for col in stock_tech_df.columns if col not in ['Adj Close', 'Date']]
@@ -36,6 +36,9 @@ for ax, feature in zip(axes.ravel(), features):
     ax.set_ylabel(feature)
 plt.tight_layout()
 plt.show()
+
+stock_tech_df['Date'] = pd.to_datetime(stock_tech_df['Date'])  # Convert the 'Date' column to a datetime object
+stock_tech_df.set_index('Date', inplace=True)
 
 # 1.2. Select feature which correlation > 0.6 (한계: 선형 상관계수만 나타냄)
 correlation = stock_tech_df.corr()['Adj Close']

@@ -22,28 +22,80 @@ import yfinance as yf
 
 stock_df = yf.download(ticker, start = start_date, end = end_date)
 
-## 이평선 추가
-stock_df['MA5'] = stock_df['Close'].rolling(window=5).mean()  # 5일 이평선 추가
-stock_df['MA15'] = stock_df['Close'].rolling(window=15).mean()  # 10일 이평선 추가
-stock_df['MA75'] = stock_df['Close'].rolling(window=75).mean()  # 20일 이평선 추가
-stock_df['MA150'] = stock_df['Close'].rolling(window=150).mean()  # 50일 이평선 추가
+## SMA 단순 이평선 추가 MA = SMA
+stock_df['MA5'] = stock_df['Adj Close'].rolling(window=5).mean()  # 5일 이평선 추가
+stock_df['MA20'] = stock_df['Adj Close'].rolling(window=20).mean()  # 10일 이평선 추가
+stock_df['MA60'] = stock_df['Adj Close'].rolling(window=60).mean()  # 20일 이평선 추가
+stock_df['MA120'] = stock_df['Adj Close'].rolling(window=120).mean()  # 50일 이평선 추가
 
+## EMA 지수 이평선 추가 
+stock_df['EMA5'] = stock_df['Adj Close'].ewm(span=5, adjust=False).mean()
+stock_df['EMA20'] = stock_df['Adj Close'].ewm(span=20, adjust=False).mean()
+stock_df['EMA60'] = stock_df['Adj Close'].ewm(span=60, adjust=False).mean()
+stock_df['EMA120'] = stock_df['Adj Close'].ewm(span=120, adjust=False).mean()
+
+'''
 ## 볼린저 추가
-stock_df['BOL_H'] = ta.volatility.bollinger_hband(stock_df['Close'])
-stock_df['BOL_AVG'] = ta.volatility.bollinger_mavg(stock_df['Close'])
-stock_df['BOL_L'] = ta.volatility.bollinger_lband(stock_df['Close'])
+stock_df['BOL_H'] = ta.volatility.bollinger_hband(stock_df['Adj Close'])
+stock_df['BOL_AVG'] = ta.volatility.bollinger_mavg(stock_df['Adj Close'])
+stock_df['BOL_L'] = ta.volatility.bollinger_lband(stock_df['Adj Close'])
+'''
 
-## RSI 추가
-stock_df['RSI'] = ta.momentum.rsi(stock_df['Close'])
+## 더블 볼린저 지표 추가
+
+# 중심선 (20일 이동평균)
+stock_df['BOL_AVG'] = ta.volatility.bollinger_mavg(stock_df['Adj Close'])
+
+# 더블 볼린저 밴드 계산
+stock_df['BOL_H1'] = stock_df['BOL_AVG'] + 2 * stock_df['Adj Close'].rolling(window=20).std()
+stock_df['BOL_L1'] = stock_df['BOL_AVG'] - 2 * stock_df['Adj Close'].rolling(window=20).std()
+stock_df['BOL_H2'] = stock_df['BOL_AVG'] + stock_df['Adj Close'].rolling(window=20).std()
+stock_df['BOL_L2'] = stock_df['BOL_AVG'] - stock_df['Adj Close'].rolling(window=20).std()
+
+
+
+''''
+##### 켈트너채널 추가
+# Keltner Channel 계산을 위한 함수
+stock_df['KC_Middle'] = stock_df['Adj Close'].rolling(window=20).mean()
+
+
+# ATR 계산
+high_low = stock_df['High'] - stock_df['Low']
+high_close = (stock_df['High'] - stock_df['Adj Close']).abs()
+low_close = (stock_df['Low'] - stock_df['Adj Close']).abs()
+
+ranges = pd.concat([high_low, high_close, low_close], axis=1)
+true_range = ranges.max(axis=1)
+atr = true_range.rolling(window=20).mean()
+
+# 상단 및 하단 채널
+stock_df['KC_Upper'] = stock_df['KC_Middle'] + 1.5 * atr
+stock_df['KC_Lower'] = stock_df['KC_Middle'] - 1.5 * atr
+###### 켈트너채널 추가 끝
+'''
+
+
+## RSI (Relative Strength Index) = 상대강도지수 추가 -> RSI >70 이면 과매수 -> , RSI < 30이하면 과매도 
+stock_df['RSI'] = ta.momentum.rsi(stock_df['Adj Close'])
 
 ## MACD 추가
-stock_df['MACD'] = ta.trend.macd(stock_df['Close'])
-stock_df['MACD_SIGNAL']= ta.trend.macd_signal(stock_df['Close'])
+stock_df['MACD'] = ta.trend.macd(stock_df['Adj Close'])
+stock_df['MACD_SIGNAL']= ta.trend.macd_signal(stock_df['Adj Close'])
+
+'''
+## ADL (Average Daily Range) /ADR (Accumulation/Distribution Line) 추가 
+## ADL 은 ta 패키지 없지만 단순하게 고가 [(High) - 저가 (Low)] / n (특정 기간 period) 로 구할수있다. 
+stock_df['ADL'] = ta.volume.AccDistIndexIndicator(stock_df['High'], stock_df['Low'], stock_df['Adj Close'], stock_df['Volume']).acc_dist_index()
+'''
 
 ## OBV 추가
-stock_df['OBV'] = ta.volume.on_balance_volume(stock_df['Close'], stock_df['Volume'])
+stock_df['OBV'] = ta.volume.on_balance_volume(stock_df['Adj Close'], stock_df['Volume'])
+
 
 tech_df = stock_df
+save_path = f'dacon/심화 loaded data/{ticker}_stock_Tech_data.csv'  
+tech_df.to_csv(save_path, index=True) 
 
 ########################################################### load Economic Indicator DATA ########################################################### 
 adj_close_df = stock_df[['Adj Close']]
