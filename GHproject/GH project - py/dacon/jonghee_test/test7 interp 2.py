@@ -13,7 +13,7 @@ Income = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Income.csv')
 Cash = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Cash.csv')
 Balance = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Balance.csv')
 Ratio = pd.read_csv(f'dacon/심화 loaded data/{ticker}_FS_Ratio.csv')
-
+Income
 # BPS
 Balance['BPS'] = Balance['Shareholders\' Equity'] / Income['Shares Outstanding (Basic)']
 
@@ -43,11 +43,55 @@ df = pd.DataFrame({
 
 df = df.set_index('Date').sort_index()
 df.index = pd.to_datetime(df.index)
+
+
 itp_df = df.resample('D').asfreq() # 일일 데이터로 리샘플링
-df
+
 # 각 변수에 대해 선형 보간법 적용
 for column in itp_df.columns:
     itp_df[column] = itp_df[column].interpolate(method='linear')
+
+############ ES
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+
+end_date = '2023-09-08'
+forecast_steps = (pd.to_datetime(end_date) - itp_df.index[-1]).days
+
+# 예측을 저장할 데이터프레임 생성
+forecast_df = pd.DataFrame(index=pd.date_range(itp_df.index[-1] + pd.Timedelta(days=1), end_date))
+
+# 각 변수에 대해 모델 적합 및 예측
+for column in itp_df.columns:
+    model = ExponentialSmoothing(itp_df[column], trend='add', seasonal='add', seasonal_periods=365).fit()
+    forecast = model.forecast(steps=forecast_steps)
+    forecast_df[column] = forecast
+
+# 원래 데이터와 예측값을 합침
+result_df = pd.concat([itp_df, forecast_df])
+
+# 결과 출력 (선택적)
+print(result_df)
+
+fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+axes = axes.ravel()
+
+for idx, column in enumerate(df.columns):
+    ax = axes[idx]
+    df[column].plot(ax=ax, label='Original', linestyle='-', color='blue')
+    result_df[column].plot(ax=ax, label='Forecast', linestyle='--', color='red')
+    ax.set_title(column)
+    ax.legend(loc='best')
+    ax.grid(True)
+
+plt.tight_layout()
+plt.show()
+
+
+
+
+
+
+############
 
 # Add Adj Close
 stock = pd.read_csv(f'dacon/심화 loaded data/{ticker}_stock_Tech_data.csv')
@@ -55,12 +99,14 @@ stock['Date'] = pd.to_datetime(stock['Date'])
 stock.set_index('Date', inplace=True)
 stock_selected = stock[['Close']]
 
-df = itp_df.merge(stock_selected, left_index=True, right_index=True, how='left')
-
+df = result_df.merge(stock_selected, left_index=True, right_index=True, how='left')
+df
 df = df.dropna()
 df.isnull().sum() # Now all missing value is dropped
 
 df
+save_path = 'dacon/심화 loaded data/FS_summary.csv'  # 파일 저장 경로 설정
+df.to_csv(save_path, index=True) # 데이터프레임을 CSV 파일로 저장
 
 ###
 import plotly.graph_objects as go
