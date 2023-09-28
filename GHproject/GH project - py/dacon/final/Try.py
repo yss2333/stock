@@ -1,20 +1,21 @@
-# 0. 저장공간 초기화
 import os
+
+# 0. Initialize Storage
 def delete_files_in_directory(directory):
     files_in_directory = os.listdir(directory)
     for file in files_in_directory:
-        file_path = os.path.join(directory, file)  # 파일의 전체 경로를 얻습니다.
-        if os.path.isfile(file_path):  # 파일인 경우만 삭제합니다.
+        file_path = os.path.join(directory, file)  
+        if os.path.isfile(file_path):  # Delete file only
             os.remove(file_path)
 delete_files_in_directory('dacon/final/Loaded data/')
 delete_files_in_directory('dacon/final/Model result/')
 ########################################################
-# 1. 여기만 입력하세요.
-ticker = 'aapl' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
+# 1. Required Inputs 
+ticker = 'aapl' # Input in lowercase
 start_date = '2013-09-28'
 end_date = '2023-09-09'
 ########################################################
-# 2. 순차적으로 모델 돌리기
+# 2. Run models sequentially
 filenames = ['dacon/final/Load Data.py',
              'dacon/final/Model/Technical analysis.py', 
              'dacon/final/Model/Fundamental analysis.py',              
@@ -42,6 +43,3 @@ Load data -> Technical과 Fundamental 에 대한 LSTM 모델 -> 앙상블 모델
                      Ensemble 모델에서는 최종 예측모델에 대한 시각화와, 오버핏을 확인할 수 있는 두가지 비주얼 그래프를 확인 할 수 있습니다.
                        - 또한, 터미널에 3가지 모델에 대한 다음날 주가예측을 실수 형태로 확인할 수 있습니다.
 '''
-
-
-
