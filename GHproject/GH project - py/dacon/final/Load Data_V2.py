@@ -1,9 +1,9 @@
 from datetime import datetime
 today = datetime.today().strftime('%Y-%m-%d')
 # 0. 여기만 입력하세요.
-ticker = 'aapl' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
-start_date = '2013-09-28'
-end_date = today
+#ticker = 'aapl' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
+#start_date = '2013-09-28'
+#end_date = today
 
 ########################################################### Add Technical Indicator to NA STOCK DATA ########################################################### 
 
@@ -347,12 +347,8 @@ for column in FS_Cash.columns:
 
 ## Create FS summary table With 보간법 & Holt-Winters' Exponential Smoothing
 
-# BPS
-FS_Balance['BPS'] = FS_Balance['Shareholders\' Equity'] / FS_Income['Shares Outstanding (Basic)']
-
-# PBR
-FS_Ratio['PBR'] = FS_Ratio['Market Capitalization'] / (FS_Balance['BPS'] * FS_Income['Shares Outstanding (Basic)'])
-
+# BPS :FS_Balance['BPS'] = FS_Balance['Shareholders\' Equity'] / FS_Income['Shares Outstanding (Basic)']
+# PBR :FS_Ratio['PBR'] = FS_Ratio['Market Capitalization'] / (FS_Balance['BPS'] * FS_Income['Shares Outstanding (Basic)'])
 # PER is Ratio['PE Ratio']
 # EPS is Income['EPS (Basic)'] and Income['EPS (Diluted)']
 # DIV is Ratio['Dividend Yield']
@@ -361,22 +357,11 @@ FS_Ratio['PBR'] = FS_Ratio['Market Capitalization'] / (FS_Balance['BPS'] * FS_In
 
 FS_Ratio['ROE'] = FS_Income['Net Income'] / FS_Balance['Shareholders\' Equity'] # ROE is Ratio['Return on Equity (ROE)']
 
+FS_Summary = pd.concat([FS_Income, FS_Balance, FS_Ratio, FS_Cash], axis=1)
 
-# Extract the columns
-FS_Summary = pd.DataFrame({
-    'Date': FS_Balance.index,
-    'BPS': FS_Balance['BPS'],
-    'PER': FS_Ratio['PE Ratio'],
-    'PBR': FS_Ratio['PBR'],
-    'EPS': FS_Income['EPS (Diluted)'],
-    'DIV': FS_Ratio['Dividend Yield'],
-    'DPS': FS_Income['Dividend Per Share'],
-    'ROE': FS_Ratio['ROE'],
-    'EBITDA': FS_Income['EBITDA']    
-})
-
-FS_Summary = FS_Summary.set_index('Date').sort_index()
 FS_Summary.index = pd.to_datetime(FS_Summary.index)
+duplicated_columns = FS_Summary.columns[FS_Summary.columns.duplicated()].unique()
+FS_Summary = FS_Summary.drop(columns=duplicated_columns)
 
 # 선형보간법
 itp_df = FS_Summary.resample('D').asfreq() # 일일 데이터로 리샘플링
@@ -393,13 +378,21 @@ for column in itp_df.columns:
     forecast_df[column] = forecast
 
 daily_FS_Summary = pd.concat([itp_df, forecast_df])
-
+daily_FS_Summary = daily_FS_Summary.dropna(axis=1, how='any') # NaN 값을 포함하는 모든 열 삭제
+daily_FS_Summary
 # Add Adj Close
 daily_FS_Summary = daily_FS_Summary.merge(adj_close_df, left_index=True, right_index=True, how='left')
 daily_FS_Summary = daily_FS_Summary.dropna()
 daily_FS_Summary['Date'] = daily_FS_Summary.index
 daily_FS_Summary = daily_FS_Summary.reset_index(drop=True)
 daily_FS_Summary = daily_FS_Summary.set_index('Date').sort_index()
+
+
+# 1.2. Select feature which correlation > 0.9 (한계: 선형 상관계수만 나타냄)
+correlation = daily_FS_Summary.corr()['Adj Close']
+selected_features = correlation[correlation.abs() > 0.9].index.tolist() # 0.6 이상의 상관계수를 가진 feature들 필터링
+
+daily_FS_Summary= daily_FS_Summary[selected_features]
 
 ###################################################################### 파일저장 ################################################################################################
 ## 1. Tech indicator
@@ -449,16 +442,26 @@ plt.tight_layout()
 plt.show()
 
 # 2. 재무제표 Summary 플랏비교
-fig, axes = plt.subplots(3, 3, figsize=(15, 10))
-axes = axes.ravel()
 
-# 'FS_Summary'와 'daily_FS_Summary'의 열을 순차적으로 비교
-for idx, column in enumerate(FS_Summary.columns):
-    ax = axes[idx]
-    FS_Summary[column].plot(ax=ax, label='Original', linestyle='-', color='blue')
-    daily_FS_Summary[column].plot(ax=ax, label='Forecast', linestyle='--', color='red')
-    ax.set_title(column)
-    ax.legend(loc='best')
-    ax.grid(True)
-plt.tight_layout()
-plt.show()
+common_columns = FS_Summary.columns.intersection(daily_FS_Summary.columns) # 두 데이터 프레임에서 공통된 열만 선택
+common_columns
+page_size = 7
+total_pages = -(-len(common_columns) // page_size)
+
+for page in range(total_pages):
+    fig, axes = plt.subplots(3, 3, figsize=(15, 10))
+    axes = axes.ravel() 
+    
+    # 해당 페이지의 마지막 항목 인덱스 계산
+    end_idx = min((page + 1) * page_size, len(common_columns))
+    
+    for idx in range(page * page_size, end_idx):
+        column = common_columns[idx]
+        FS_Summary[column].plot(ax=axes[idx % page_size], label='Original', linestyle='-', color='blue')
+        daily_FS_Summary[column].plot(ax=axes[idx % page_size], label='Forecast', linestyle='--', color='red')
+        axes[idx % page_size].set_title(column)
+        axes[idx % page_size].legend(loc='best')
+        axes[idx % page_size].grid(True)
+    plt.tight_layout()
+    plt.show()
+

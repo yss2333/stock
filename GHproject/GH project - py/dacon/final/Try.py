@@ -1,4 +1,6 @@
 import os
+from datetime import datetime
+today = datetime.today().strftime('%Y-%m-%d')
 
 # 0. Initialize Storage
 def delete_files_in_directory(directory):
@@ -11,15 +13,15 @@ delete_files_in_directory('dacon/final/Loaded data/')
 delete_files_in_directory('dacon/final/Model result/')
 ########################################################
 # 1. Required Inputs 
-ticker = 'aapl' # Input in lowercase
+ticker = 'nvda' # Input in lowercase
 start_date = '2013-09-28'
-end_date = '2023-09-09'
+end_date = today
 ########################################################
 # 2. Run models sequentially
-filenames = ['dacon/final/Load Data.py',
+filenames = ['dacon/final/Load Data_V2.py',
              'dacon/final/Model/Technical analysis.py', 
              'dacon/final/Model/Fundamental analysis.py',              
-             'dacon/final/Model/Stacking Ensemble.py']
+             'dacon/final/Model/앙상블 v2.py']
 
 for filename in filenames:
     with open(filename, 'r') as file:
