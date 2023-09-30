@@ -1,7 +1,8 @@
+
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
@@ -36,18 +37,43 @@ y_stack = scaled_df['Real Price'].values
 # Data split (20% test)
 X_train, X_val, y_train, y_val = train_test_split(X_stack, y_stack, test_size=0.2, random_state=42)
 
-# 3. Meta model training
-meta_model = LinearRegression()
-meta_model.fit(X_train, y_train)
-
-# 4. Meta model Predicting
-y_pred = meta_model.predict(X_val)
 
 
-# 5. Test MSE
+
+# 3. Meta model training using XGBoost with GridSearchCV
+import xgboost as xgb
+
+# 3. Meta model training using XGBoost with GridSearchCV
+model = xgb.XGBRegressor(objective='reg:squarederror')
+
+
+param_grid = {
+    'max_depth': [3, 4, 5],
+    'learning_rate': [0.01, 0.05, 0.1],
+    'subsample': [0.8, 0.9],
+    'colsample_bytree': [0.8, 0.9],
+    'n_estimators': [50, 100],
+    'gamma': [0, 0.1, 0.2],
+    'min_child_weight': [1, 5, 10],
+    'reg_alpha': [0, 0.1, 0.5],
+    'reg_lambda': [0.5, 1, 1.5]
+}
+
+grid_search = GridSearchCV(model, param_grid, cv=5, scoring='neg_mean_squared_error', n_jobs=-1)
+grid_search.fit(X_train, y_train)
+
+best_params = grid_search.best_params_
+print(f"Best parameters found: {best_params}")
+
+# Train the model with best parameters
+meta_model_xgb = xgb.XGBRegressor(objective='reg:squarederror', **best_params)
+meta_model_xgb.fit(X_train, y_train)
+
+# Validate
+y_pred = meta_model_xgb.predict(X_val)
 mse = mean_squared_error(y_val, y_pred)
-
 ##################################### VISUAL #########################################
+
 # 스케일링된 데이터에서 예측값 추출
 y_val_original = scaler.inverse_transform(np.column_stack([y_val, np.zeros_like(y_val), np.zeros_like(y_val)]))[:, 0]
 y_pred_original = scaler.inverse_transform(np.column_stack([y_pred, np.zeros_like(y_pred), np.zeros_like(y_pred)]))[:, 0]
@@ -90,8 +116,10 @@ plt.tight_layout()  # 그래프가 잘 보이도록 레이아웃 조정
 plt.show()
 
 ################################################################################ 정확도 평가 ######################################################################################################### 
+
+
 # 1. MSE 비교 그래프
-y_train_pred = meta_model.predict(X_train)
+y_train_pred = meta_model_xgb.predict(X_train)
 train_mse = mean_squared_error(y_train, y_train_pred)
 val_mse = mse  # 이전에 계산했던 검증 데이터의 MSE
 
@@ -102,7 +130,7 @@ plt.show()
 
 
 # 2. 교차 검증
-cross_val_mse = -cross_val_score(meta_model, X_stack, y_stack, cv=10, scoring='neg_mean_squared_error').mean()
+cross_val_mse = -cross_val_score(meta_model_xgb, X_stack, y_stack, cv=10, scoring='neg_mean_squared_error').mean()
 errors = [mse, cross_val_mse]
 labels = ['Test MSE', 'Cross Validation MSE']
 
@@ -117,7 +145,7 @@ plt.show()
 from sklearn.model_selection import learning_curve
 
 train_sizes, train_scores, val_scores = learning_curve( # 학습 곡선 데이터 얻기
-    meta_model, X_stack, y_stack, cv=5,
+    meta_model_xgb, X_stack, y_stack, cv=5,
     train_sizes=np.linspace(0.1, 1.0, 10), scoring="neg_mean_squared_error"
 )
 
@@ -138,11 +166,10 @@ plt.ylabel("Mean Squared Error")
 plt.legend(loc="best")
 plt.title("Learning Curve for Meta Model")
 plt.show()
-import os
-print(os.listdir('.'))
+
 
 ################################################################### 실제 다음날 예측 진행 ###################################################################################################
-
+'''
 # Tech와 Fund 모델로부터 얻은 다음 날의 예측 값을 표현하자면 다음과 같습니다:
 next_day_tech_pred = tech_predicted_new_original  # 여기에 Tech 모델로부터 얻은 다음 날 예측 값을 넣어주세요.
 next_day_fund_pred = fund_predicted_new_original  # 여기에 Fund 모델로부터 얻은 다음 날 예측 값을 넣어주세요.
@@ -167,5 +194,5 @@ else:
 print(f"다음 날({next_day.strftime('%Y-%m-%d')})의 Tech 예측 가격은: {tech_predicted_new_original}") 
 print(f"다음 날({next_day.strftime('%Y-%m-%d')})의 Funda 예측 가격은: {fund_predicted_new_original}") 
 print(f"다음 날({next_day.strftime('%Y-%m-%d')})의 최종 예측 가격은: {next_day_meta_pred}") 
-
+'''
 

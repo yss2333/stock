@@ -55,7 +55,6 @@ for column in income.columns:
     result[column] = forecast
 
 df = income.append(result)
-df
 
 
 # 보간법

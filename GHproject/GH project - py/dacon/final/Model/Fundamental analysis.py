@@ -9,10 +9,9 @@ from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
-
+ticker = 'nvda'
 
 tf.keras.backend.clear_session() # 메모리 초기화
-# ticker = 'aapl'
 
 ## 1.1. Load data
 df = pd.read_csv(f'dacon/final/Loaded data/{ticker}_FS_summary.csv')
@@ -23,20 +22,33 @@ df3 = pd.read_csv(f'dacon/final/Loaded data/Industry_data.csv')
 df.set_index('Date', inplace=True)
 df2.set_index('Date', inplace=True)
 df3.set_index('Date', inplace=True)
-df3
+
 
 # 1.2. Select the required columns from df2
-df2_selected = df2[[ '5-year', 'T10Y2Y', 'UNRATE', 'CPIAUCSL']].copy()
-df3_selected = df3[[ 'NDAQ Adj Close', 'NDAQ Volume'] + df3.columns[-2:].tolist()]
+df2_selected = df2[['GDP', 'CPIAUCSL']].copy()
+df3_selected = df3[['NDAQ Adj Close', 'DJI Adj Close', 'SPX Adj Close'] + [df3.columns[-2]]]
 
 # 1.3. Merge the selected data with df based on the Date
 df = df.merge(df2_selected, on='Date', how='left')
 df = df.merge(df3_selected, on='Date', how='left')
-df
 
+'''
+features = [col for col in df.columns if col not in ['Adj Close', 'Date']]
+
+n = len(features) # 총 변수 갯수에 따른 행과 열 계산
+ncols = 6  # 한 행에 2개의 그래프
+nrows = 6
+fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(8, 2*nrows))
+for ax, feature in zip(axes.ravel(), features):
+    ax.scatter(df['Adj Close'], df[feature], s=10) # s=10으로 점의 크기 줄임
+    ax.set_title(f'Adj Close vs {feature}')
+    ax.set_xlabel('Adj Close')
+    ax.set_ylabel(feature)
+plt.tight_layout()
+plt.show()
+'''
 
 ## 2.1. Remove Outliers & Missing value
-df.isnull().sum() 
 df = df.dropna()
 df.isnull().sum() 
 
@@ -69,9 +81,10 @@ label_np = label_df.to_numpy()
 print(feature_np.shape, label_np.shape) # (2353, 16) (2353, 1)
 
 
+## 3. Create data     
 ## 3. Create data    
 # 3.1. Set window size
-window_size = 50
+window_size = 30
 X, Y = make_sequene_dataset(feature_np, label_np, window_size)
 print(X.shape, Y.shape) # (2452, 50, 5) (2452, 1)
 
@@ -85,18 +98,25 @@ y_test = Y[split:]
 
 print(x_train.shape, y_train.shape) # (1961, 50, 5) (1961, 1)
 print(x_test.shape, y_test.shape) # (491, 50, 5) (491, 1)
-
+######################################################################################################################################################################################
 ## 4. Construct and Compile model
 
-# model 생성
+from keras.regularizers import L1L2
+
 model = Sequential()
 
-model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True))  # return_sequences를 True로 설정하여 다음 LSTM 층으로 출력을 전달
+model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True,
+               kernel_regularizer=L1L2(l1=0.01, l2=0.01), recurrent_regularizer=L1L2(l1=0.01, l2=0.01)))
+               
+
 
 model.add(LSTM(64, activation='tanh'))
 
-model.add(Dense(1, activation='linear')) # 출력층
+
+model.add(Dense(1, activation='linear'))
+
 model.compile(loss='mse', optimizer='adam', metrics=['mae'])
+
 
 model.summary()
 
@@ -109,12 +129,12 @@ val_loss_history = []
 # model 학습 (checkpoint, earlystopping, reduceLR 적용)
 save_best_only=tf.keras.callbacks.ModelCheckpoint(filepath="jonghee_test/tech lstm_model.h5", monitor='val_loss', save_best_only=True) #가장 좋은 성능을 낸 val_loss가 적은 model만 남겨 놓았습니다.
 early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)
-reduceLR = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10) #검증 손실이 10epoch 동안 좋아지지 않으면 학습률을 0.1 배로 재구성하는 명령어입니다.
+#reduceLR = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10) #검증 손실이 10epoch 동안 좋아지지 않으면 학습률을 0.1 배로 재구성하는 명령어입니다.
 
 hist = model.fit(x_train, y_train, 
           validation_data=(x_test, y_test),
-          epochs=100, batch_size=16,        # 100번 학습 - loss가 점점 작아진다, 만약 100번의 학습을 다 하지 않더라도 loss 가 더 줄지 않는다면, 맞춰둔 조건에 따라 조기종료가 이루어진다
-          callbacks=[early_stop,  reduceLR]) # save_best_only ,
+          epochs=100, batch_size=150,        # 100번 학습 - loss가 점점 작아진다, 만약 100번의 학습을 다 하지 않더라도 loss 가 더 줄지 않는다면, 맞춰둔 조건에 따라 조기종료가 이루어진다
+          callbacks=[early_stop]) # save_best_only ,
 
 pred = model.predict(x_test)
 
@@ -201,6 +221,8 @@ fund_predicted_new_original = scaler.inverse_transform(inverse_df_temp)[:, inver
 
 # Convert numpy array value to scalar
 fund_predicted_new_original = fund_predicted_new_original.item()
+
+
 
 
 

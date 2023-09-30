@@ -25,7 +25,10 @@ df.isnull().sum()
 
 ## 2.2. Normalization
 scaler = MinMaxScaler()
-scale_cols = df.columns.tolist()
+scale_cols = ['Open', 'High', 'Low', 'Close','Adj Close',
+              'EMA5','EMA20','EMA60','EMA120','MA5','MA20','MA60','MA120',
+              'BOL_H1', 'BOL_AVG', 'BOL_L1','BOL_H2','BOL_L2'
+              ]
 scaled_df = scaler.fit_transform(df[scale_cols])
 scaled_df = pd.DataFrame(scaled_df, columns=scale_cols) 
 
@@ -39,7 +42,9 @@ def make_sequene_dataset(feature, label, window_size):
     return np.array(feature_list), np.array(label_list) 
 
 # feature_df, label_df 생성
-feature_cols = df.columns.drop('Adj Close').tolist()
+feature_cols = ['Open', 'High', 'Low', 'Close','MA5','MA20','MA60','MA120',
+              'EMA5','EMA20','EMA60','EMA120',
+              'BOL_H1', 'BOL_AVG', 'BOL_L1','BOL_H2','BOL_L2']
 label_cols = [ 'Adj Close' ]
 
 feature_df = pd.DataFrame(scaled_df, columns=feature_cols)
@@ -54,7 +59,7 @@ print(feature_np.shape, label_np.shape) # (2353, 16) (2353, 1)
 
 ## 3. Create data    
 # 3.1. Set window size
-window_size = 50
+window_size = 30
 X, Y = make_sequene_dataset(feature_np, label_np, window_size)
 print(X.shape, Y.shape) # (2452, 50, 5) (2452, 1)
 
@@ -69,19 +74,27 @@ y_test = Y[split:]
 print(x_train.shape, y_train.shape) # (1961, 50, 5) (1961, 1)
 print(x_test.shape, y_test.shape) # (491, 50, 5) (491, 1)
 
+######################################################################################################################################################################################
 ## 4. Construct and Compile model
 
-# model 생성
+from keras.regularizers import L1L2
+
 model = Sequential()
 
-model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True))  # return_sequences를 True로 설정하여 다음 LSTM 층으로 출력을 전달
+model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True, 
+               kernel_regularizer=L1L2(l1=0.01, l2=0.01), recurrent_regularizer=L1L2(l1=0.01, l2=0.01)))
+model.add(Dropout(0.2))
 
-model.add(LSTM(64, activation='relu'))
+model.add(LSTM(64, activation='tanh'))
+model.add(Dropout(0.2))
 
-model.add(Dense(1, activation='linear')) # 출력층
+model.add(Dense(1, activation='linear'))
+
 model.compile(loss='mse', optimizer='adam', metrics=['mae'])
 
+
 model.summary()
+
 
 
 # 모델 학습 과정에서의 손실(loss) 값을 기록하기 위한 리스트
@@ -91,12 +104,12 @@ val_loss_history = []
 # model 학습 (checkpoint, earlystopping, reduceLR 적용)
 save_best_only=tf.keras.callbacks.ModelCheckpoint(filepath="jonghee_test/tech lstm_model.h5", monitor='val_loss', save_best_only=True) #가장 좋은 성능을 낸 val_loss가 적은 model만 남겨 놓았습니다.
 early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)
-reduceLR = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10) #검증 손실이 10epoch 동안 좋아지지 않으면 학습률을 0.1 배로 재구성하는 명령어입니다.
+#reduceLR = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10) #검증 손실이 10epoch 동안 좋아지지 않으면 학습률을 0.1 배로 재구성하는 명령어입니다.
 
 hist = model.fit(x_train, y_train, 
           validation_data=(x_test, y_test),
-          epochs=100, batch_size=128,        # 100번 학습 - loss가 점점 작아진다, 만약 100번의 학습을 다 하지 않더라도 loss 가 더 줄지 않는다면, 맞춰둔 조건에 따라 조기종료가 이루어진다
-          callbacks=[early_stop,  reduceLR]) # save_best_only ,
+          epochs=100, batch_size=150,        # 100번 학습 - loss가 점점 작아진다, 만약 100번의 학습을 다 하지 않더라도 loss 가 더 줄지 않는다면, 맞춰둔 조건에 따라 조기종료가 이루어진다
+          callbacks=[early_stop]) # save_best_only ,
 
 pred = model.predict(x_test)
 

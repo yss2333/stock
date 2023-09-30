@@ -1,10 +1,12 @@
+from datetime import datetime
+today = datetime.today().strftime('%Y-%m-%d')
 # 0. 여기만 입력하세요.
-ticker = 'aapl' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
-start_date = '2013-09-28'
-end_date = '2023-09-08'
+#ticker = 'aapl' # 소문자로 입력해야 합니다 아니면 FS 뽑을때 오류
+#start_date = '2013-09-28'
+#end_date = today
 
 ########################################################### Add Technical Indicator to NA STOCK DATA ########################################################### 
-from datetime import datetime
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -52,8 +54,6 @@ stock_df['BOL_L1'] = stock_df['BOL_AVG'] - 2 * stock_df['Adj Close'].rolling(win
 stock_df['BOL_H2'] = stock_df['BOL_AVG'] + stock_df['Adj Close'].rolling(window=20).std()
 stock_df['BOL_L2'] = stock_df['BOL_AVG'] - stock_df['Adj Close'].rolling(window=20).std()
 
-
-
 ''''
 ##### 켈트너채널 추가
 # Keltner Channel 계산을 위한 함수
@@ -75,7 +75,6 @@ stock_df['KC_Lower'] = stock_df['KC_Middle'] - 1.5 * atr
 ###### 켈트너채널 추가 끝
 '''
 
-
 ## RSI (Relative Strength Index) = 상대강도지수 추가 -> RSI >70 이면 과매수 -> , RSI < 30이하면 과매도 
 stock_df['RSI'] = ta.momentum.rsi(stock_df['Adj Close'])
 
@@ -94,8 +93,6 @@ stock_df['OBV'] = ta.volume.on_balance_volume(stock_df['Adj Close'], stock_df['V
 
 
 tech_df = stock_df
-save_path = f'GHproject\GH project - py\dacon\심화 loaded data\{ticker}_stock_Tech_data.csv'  
-tech_df.to_csv(save_path, index=True) 
 
 ########################################################### load Economic Indicator DATA ########################################################### 
 adj_close_df = stock_df[['Adj Close']]
@@ -127,11 +124,12 @@ VIX.index.name = 'Date'
 ##금융 스트레스 지수
 FSI = fdr.DataReader('FRED:STLFSI3', start_date, end_date)
 FSI.index.name = 'Date'
+'''
 
 ## GDP - 3달주기
 GDP = pd.DataFrame(fred.get_series('GDP',observation_start=start_date, observation_end = end_date),columns=['GDP'])
 GDP.index.name = 'Date'
-'''
+
 
 ## Unemplotment - 1달주기
 Unemployment_Rate = fdr.DataReader('FRED:UNRATE', start_date, end_date)
@@ -151,10 +149,11 @@ econ_month_df = Unemployment_Rate.join([CPI, FEDFUNDS], how='left')
 itp_df = econ_month_df.resample('D').asfreq()
 
 last_valid_indices = {column: itp_df[column].last_valid_index() for column in itp_df.columns} # 각 변수의 마지막 유효한 인덱스 찾기
-last_valid_indices
+
 for column in itp_df.columns:
-    itp_df[column] = itp_df[column].interpolate(method='linear').loc[:last_valid_indices[column]] # 마지막 유효한 인덱스까지만 선형 보간 적용
-  
+    last_index = last_valid_indices[column]
+    itp_df[column].loc[:last_index] = itp_df[column].loc[:last_index].interpolate(method='linear')
+
 # Holt-Winters' Exponential Smoothing
 forecast_steps = (pd.to_datetime(end_date) - itp_df.last_valid_index()).days
 forecast_df = pd.DataFrame(index=pd.date_range(itp_df.last_valid_index() + pd.Timedelta(days=1), end_date))
@@ -164,8 +163,25 @@ for column in itp_df.columns:
     model = ExponentialSmoothing(data_to_fit, trend='add', seasonal=None, seasonal_periods=12).fit()
     forecast = model.forecast(steps=forecast_steps)
     forecast_df[column] = forecast
-
+    
 daily_econ = pd.concat([itp_df, forecast_df])
+
+
+## 3달주기인 GDP에 대한 보간법 + Holt-Winters' Exponential Smoothing
+# 일별 데이터로 변환 및 보간
+itp_df = GDP.resample('D').asfreq()
+last_valid_index = itp_df['GDP'].last_valid_index()
+itp_df['GDP'] = itp_df['GDP'].interpolate(method='linear').loc[:last_valid_index]
+
+# Holt-Winters' Exponential Smoothing
+forecast_steps = (pd.to_datetime(end_date) - itp_df.last_valid_index()).days
+data_to_fit = itp_df['GDP'].dropna()
+model = ExponentialSmoothing(data_to_fit, trend='add', seasonal=None, seasonal_periods=4).fit()
+forecast = model.forecast(steps=forecast_steps)
+forecast_df = pd.DataFrame(forecast, columns=['GDP'], index=pd.date_range(itp_df.last_valid_index() + pd.Timedelta(days=1), end_date))
+
+daily_gdp = pd.concat([itp_df, forecast_df])
+daily_econ = daily_econ.join([daily_gdp], how='left')
 
 # 모든 결합된 데이터를 합침
 econ_df = adj_close_df.join([DGS, T10Y2Y, VIX], how='left')
@@ -178,6 +194,7 @@ df = pdr.get_data_yahoo("^DJI", start=start_date, end=end_date) # 다우지수
 df1 = pdr.get_data_yahoo("NDAQ", start=start_date, end=end_date) # 나스닥
 df2 = pdr.get_data_yahoo("^SPX", start=start_date, end=end_date) # S&P500
 df3 = pdr.get_data_yahoo("^RUT", start=start_date, end=end_date) # 러셀 2000
+
 
 df.rename(columns={'Adj Close': 'DJI Adj Close', 'Volume': 'DJI Volume'}, inplace=True) # 이름 다시정하기
 df1.rename(columns={'Adj Close': 'NDAQ Adj Close', 'Volume': 'NDAQ Volume'}, inplace=True)
@@ -217,7 +234,6 @@ for sector, sector_name in sectors.items():
     sector_data[sector] = data[[f'{sector_name} Adj Close', f'{sector_name} Volume']]
 
 ETF = pd.concat(sector_data.values(), axis=1)
-ETF
 
 ## Merge into industry data
 sector = yf.Ticker(ticker).info.get('sector', None)
@@ -232,6 +248,7 @@ Industry_df = Index_data.merge(sector_df, on="Date", how="inner")
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36'
 }
+
 ## 1. INCOME STATEMENT
 url = f"https://stockanalysis.com/stocks/{ticker}/financials/?p=quarterly" 
 response = requests.get(url, headers=headers)
@@ -256,8 +273,6 @@ for column in FS_Income.columns:
             FS_Income[column] = FS_Income[column].apply(lambda x: float(x.replace('%', '')) / 100 if '%' in x else x) # 퍼센트 기호가 있는 문자열 처리
         FS_Income[column] = pd.to_numeric(FS_Income[column], errors='coerce')  # 다른 문자열을 숫자로 변환
         
-
-
 ## 2. RATIO STATEMENT
 url = f"https://stockanalysis.com/stocks/{ticker}/financials/ratios/?p=quarterly" 
 response = requests.get(url, headers=headers)
@@ -280,8 +295,6 @@ for column in FS_Ratio.columns:
         if FS_Ratio[column].dtype == 'object' and FS_Ratio[column].str.contains('%').any():
             FS_Ratio[column] = FS_Ratio[column].apply(lambda x: float(x.replace('%', '')) / 100 if '%' in x else x) # 퍼센트 기호가 있는 문자열 처리       
         FS_Ratio[column] = pd.to_numeric(FS_Ratio[column], errors='coerce') # 다른 문자열을 숫자로 변환
-
-
 
 ## 3. Balance Sheet
 url = f"https://stockanalysis.com/stocks/{ticker}/financials/balance-sheet/?p=quarterly" 
@@ -306,8 +319,6 @@ for column in FS_Balance.columns:
             FS_Balance[column] = FS_Balance[column].apply(lambda x: float(x.replace('%', '')) / 100 if '%' in x else x) # 퍼센트 기호가 있는 문자열 처리       
         FS_Balance[column] = pd.to_numeric(FS_Balance[column], errors='coerce') # 다른 문자열을 숫자로 변환
 
-
-
 ## 4. Cash Flow
 url = f"https://stockanalysis.com/stocks/{ticker}/financials/cash-flow-statement/?p=quarterly" 
 response = requests.get(url, headers=headers)
@@ -331,51 +342,33 @@ for column in FS_Cash.columns:
             FS_Cash[column] = FS_Cash[column].apply(lambda x: float(x.replace('%', '')) / 100 if '%' in x else x) # 퍼센트 기호가 있는 문자열 처리       
         FS_Cash[column] = pd.to_numeric(FS_Cash[column], errors='coerce') # 다른 문자열을 숫자로 변환
 
-
-
 ##############################################################################################################
 ##############################################################################################################
 
 ## Create FS summary table With 보간법 & Holt-Winters' Exponential Smoothing
 
-# BPS
-FS_Balance['BPS'] = FS_Balance['Shareholders\' Equity'] / FS_Income['Shares Outstanding (Basic)']
-
-# PBR
-FS_Ratio['PBR'] = FS_Ratio['Market Capitalization'] / (FS_Balance['BPS'] * FS_Income['Shares Outstanding (Basic)'])
-
+# BPS :FS_Balance['BPS'] = FS_Balance['Shareholders\' Equity'] / FS_Income['Shares Outstanding (Basic)']
+# PBR :FS_Ratio['PBR'] = FS_Ratio['Market Capitalization'] / (FS_Balance['BPS'] * FS_Income['Shares Outstanding (Basic)'])
 # PER is Ratio['PE Ratio']
 # EPS is Income['EPS (Basic)'] and Income['EPS (Diluted)']
 # DIV is Ratio['Dividend Yield']
+# DPS is Income['Dividend Per Share']
+# EBITDA is Income['EBITDA'] 
 
-# DPS (This will be an approximation as we're not given dividends directly)
-FS_Balance['Market Price'] = FS_Ratio['Market Capitalization'] / FS_Income['Shares Outstanding (Basic)']  # Assuming market price = Market Capitalization / Shares Outstanding (Basic)
-FS_Balance['DPS'] = FS_Ratio['Dividend Yield'] * FS_Balance['Market Price']
+FS_Ratio['ROE'] = FS_Income['Net Income'] / FS_Balance['Shareholders\' Equity'] # ROE is Ratio['Return on Equity (ROE)']
 
-# Extract the columns
-FS_Summary = pd.DataFrame({
-    'Date': FS_Balance.index,
-    'BPS': FS_Balance['BPS'],
-    'PER': FS_Ratio['PE Ratio'],
-    'PBR': FS_Ratio['PBR'],
-    'EPS': FS_Income['EPS (Diluted)'],
-    'DIV': FS_Ratio['Dividend Yield'],
-    'DPS': FS_Balance['DPS']
-})
+FS_Summary = pd.concat([FS_Income, FS_Balance, FS_Ratio, FS_Cash], axis=1)
 
-FS_Summary = FS_Summary.set_index('Date').sort_index()
 FS_Summary.index = pd.to_datetime(FS_Summary.index)
-
+duplicated_columns = FS_Summary.columns[FS_Summary.columns.duplicated()].unique()
+FS_Summary = FS_Summary.drop(columns=duplicated_columns)
 
 # 선형보간법
 itp_df = FS_Summary.resample('D').asfreq() # 일일 데이터로 리샘플링
 for column in itp_df.columns:
     itp_df[column] = itp_df[column].interpolate(method='linear') # 각 변수에 대해 선형 보간법 적용
     
-
 # Holt-Winters' Exponential Smoothing
-
-
 forecast_steps = (pd.to_datetime(end_date) - itp_df.index[-1]).days
 forecast_df = pd.DataFrame(index=pd.date_range(itp_df.index[-1] + pd.Timedelta(days=1), end_date)) # 예측을 저장할 데이터프레임 생성
 
@@ -385,53 +378,62 @@ for column in itp_df.columns:
     forecast_df[column] = forecast
 
 daily_FS_Summary = pd.concat([itp_df, forecast_df])
-
+daily_FS_Summary = daily_FS_Summary.dropna(axis=1, how='any') # NaN 값을 포함하는 모든 열 삭제
+daily_FS_Summary
 # Add Adj Close
 daily_FS_Summary = daily_FS_Summary.merge(adj_close_df, left_index=True, right_index=True, how='left')
 daily_FS_Summary = daily_FS_Summary.dropna()
-daily_FS_Summary
+daily_FS_Summary['Date'] = daily_FS_Summary.index
+daily_FS_Summary = daily_FS_Summary.reset_index(drop=True)
+daily_FS_Summary = daily_FS_Summary.set_index('Date').sort_index()
+
+
+# 1.2. Select feature which correlation > 0.9 (한계: 선형 상관계수만 나타냄)
+correlation = daily_FS_Summary.corr()['Adj Close']
+selected_features = correlation[correlation.abs() > 0.9].index.tolist() # 0.6 이상의 상관계수를 가진 feature들 필터링
+
+daily_FS_Summary= daily_FS_Summary[selected_features]
 
 ###################################################################### 파일저장 ################################################################################################
 ## 1. Tech indicator
-save_path = f'dacon/심화 loaded data/{ticker}_stock_Tech_data.csv'  
+save_path = f'dacon/final/Loaded data/{ticker}_stock_Tech_data.csv'  
 tech_df.to_csv(save_path, index=True) 
 
 ## 2. Econ indicator
-save_path = f'dacon/심화 loaded data/Econ_data.csv'  
+save_path = f'dacon/final/Loaded data/Econ_data.csv'  
 econ_df.to_csv(save_path, index=True) 
 
 ## 3. Industry indicator
-save_path = '/Users/jongheelee/Desktop/JH/personal/GHproject/GH project - py/dacon/심화 loaded data/Industry_data.csv'  
+save_path = 'dacon/final/Loaded data/Industry_data.csv'  
 Industry_df.to_csv(save_path, index=True) 
 
 ## 4. Company indicator
-#    save_path = f'dacon/심화 loaded data/{ticker}_FS_Income.csv'  
-#    FS_Income.to_csv(save_path, index=True) 
+#save_path = f'dacon/final/Loaded data/{ticker}_FS_Income.csv'  
+#FS_Income.to_csv(save_path, index=True) 
 
-#    save_path = f'dacon/심화 loaded data/{ticker}_FS_Ratio.csv'  
-#    FS_Ratio.to_csv(save_path, index=True) 
+#save_path = f'dacon/final/Loaded data/{ticker}_FS_Ratio.csv'  
+#FS_Ratio.to_csv(save_path, index=True) 
 
-#    save_path = f'dacon/심화 loaded data/{ticker}_FS_Balance.csv'  
-#    FS_Balance.to_csv(save_path, index=True) 
+#save_path = f'dacon/final/Loaded data/{ticker}_FS_Balance.csv'  
+#FS_Balance.to_csv(save_path, index=True) 
 
-#    save_path = f'dacon/심화 loaded data/{ticker}_FS_Cash.csv'  
-#    FS_Cash.to_csv(save_path, index=True) 
+#save_path = f'dacon/final/Loaded data/{ticker}_FS_Cash.csv'  
+#FS_Cash.to_csv(save_path, index=True) 
 
 ## 5. Company FS summary daily
-save_path = f'dacon/심화 loaded data/{ticker}_FS_summary.csv'  
+save_path = f'dacon/final/Loaded data/{ticker}_FS_summary.csv'  
 daily_FS_Summary.to_csv(save_path, index=True) 
-
-
 
 ################################### 메꾼값들 그래프로 비교하기 ##############################3
 # 1. 경제지표 플랏비교
+econ_month_df = Unemployment_Rate.join([CPI, FEDFUNDS, GDP], how='left')
 fig, axes = plt.subplots(2, 2, figsize=(15, 10))  # 2x2 subplot for 4 variables
 axes = axes.ravel()
 
 # 'econ_month_df'와 'daily_econ'의 열을 순차적으로 비교
 for idx, column in enumerate(econ_month_df.columns):
     ax = axes[idx]
-    econ_month_df[column].plot(ax=ax, label='Original', linestyle='-', color='blue')
+    econ_month_df[column].plot(ax=ax, label='Original', linestyle='-', color='blue', marker='o', ms=3)
     daily_econ[column].plot(ax=ax, label='Forecast', linestyle='--', color='red')
     ax.set_title(column)
     ax.legend(loc='best')
@@ -439,18 +441,27 @@ for idx, column in enumerate(econ_month_df.columns):
 plt.tight_layout()
 plt.show()
 
-
 # 2. 재무제표 Summary 플랏비교
-fig, axes = plt.subplots(2, 4, figsize=(15, 10))
-axes = axes.ravel()
 
-# 'FS_Summary'와 'daily_FS_Summary'의 열을 순차적으로 비교
-for idx, column in enumerate(FS_Summary.columns):
-    ax = axes[idx]
-    FS_Summary[column].plot(ax=ax, label='Original', linestyle='-', color='blue')
-    daily_FS_Summary[column].plot(ax=ax, label='Forecast', linestyle='--', color='red')
-    ax.set_title(column)
-    ax.legend(loc='best')
-    ax.grid(True)
-plt.tight_layout()
-plt.show()
+common_columns = FS_Summary.columns.intersection(daily_FS_Summary.columns) # 두 데이터 프레임에서 공통된 열만 선택
+common_columns
+page_size = 7
+total_pages = -(-len(common_columns) // page_size)
+
+for page in range(total_pages):
+    fig, axes = plt.subplots(3, 3, figsize=(15, 10))
+    axes = axes.ravel() 
+    
+    # 해당 페이지의 마지막 항목 인덱스 계산
+    end_idx = min((page + 1) * page_size, len(common_columns))
+    
+    for idx in range(page * page_size, end_idx):
+        column = common_columns[idx]
+        FS_Summary[column].plot(ax=axes[idx % page_size], label='Original', linestyle='-', color='blue')
+        daily_FS_Summary[column].plot(ax=axes[idx % page_size], label='Forecast', linestyle='--', color='red')
+        axes[idx % page_size].set_title(column)
+        axes[idx % page_size].legend(loc='best')
+        axes[idx % page_size].grid(True)
+    plt.tight_layout()
+    plt.show()
+
