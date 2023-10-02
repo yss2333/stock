@@ -12,7 +12,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 
 
 tf.keras.backend.clear_session() # 메모리 초기화
-# ticker = 'aapl'
+ticker = 'aapl'
 
 ## 1. Load data
 df = pd.read_csv(f'dacon/final/Loaded data/{ticker}_stock_Tech_data.csv')
@@ -79,19 +79,19 @@ print(x_test.shape, y_test.shape) # (491, 50, 5) (491, 1)
 
 from keras.regularizers import L1L2
 
+
 model = Sequential()
 
-model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True, 
-               kernel_regularizer=L1L2(l1=0.01, l2=0.01), recurrent_regularizer=L1L2(l1=0.01, l2=0.01)))
+model.add(LSTM(64, activation='tanh', input_shape=x_train[0].shape, return_sequences=False, 
+               kernel_regularizer=L1L2(l1=0.0001, l2=0.0001), recurrent_regularizer=L1L2(l1=0.0001, l2=0.0001)))
 model.add(Dropout(0.2))
 
-model.add(LSTM(64, activation='tanh'))
-model.add(Dropout(0.2))
+# model.add(LSTM(64, activation='tanh'))
+# model.add(Dropout(0.2))
 
 model.add(Dense(1, activation='linear'))
 
 model.compile(loss='mse', optimizer='adam', metrics=['mae'])
-
 
 model.summary()
 
@@ -194,8 +194,22 @@ predicted_new_full_features = np.hstack([predicted_new, dummy_data])
 
 tech_predicted_new_original = scaler.inverse_transform(predicted_new_full_features)[0, 0]
 
+#####################3
+import matplotlib.pyplot as plt
 
+# 첫 번째 LSTM 층의 가중치를 가져옴
+weights = model.layers[0].get_weights()[0]  # kernel 가중치
 
+# 가중치를 1-D로 펼침
+weights_flattened = weights.flatten()
+
+plt.figure(figsize=(10,6))
+plt.scatter(range(len(weights_flattened)), weights_flattened, alpha=0.6)
+plt.ylim(-0.1, 0.1)  # y축의 범위를 제한하여 작은 값에 집중
+plt.xlabel('Weight Index')
+plt.ylabel('Weight Value')
+plt.title('Dot Plot of LSTM kernel weights')
+plt.show()
 
 
 

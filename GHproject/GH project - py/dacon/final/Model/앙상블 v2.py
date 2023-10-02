@@ -21,7 +21,7 @@ df = pd.merge(df1[['Date', 'Real Price', 'Predicted Price']],
 df.columns = ['Date', 'Real Price', 'Tech_Pred', 'Fund_Pred'] # Rename Column
 df = df.set_index('Date').sort_index()
 
-
+df
 # MinMax
 scaler = MinMaxScaler()
 scale_cols = ['Real Price', 'Tech_Pred', 'Fund_Pred']

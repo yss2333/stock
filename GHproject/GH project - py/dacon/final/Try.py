@@ -13,15 +13,15 @@ delete_files_in_directory('dacon/final/Loaded data/')
 delete_files_in_directory('dacon/final/Model result/')
 ########################################################
 # 1. Required Inputs 
-ticker = 'nvda' # Input in lowercase
+ticker = 'aapl' # Input in lowercase
 start_date = '2013-09-28'
 end_date = today
 ########################################################
 # 2. Run models sequentially
 filenames = ['dacon/final/Load Data_V2.py',
-             'dacon/final/Model/Technical analysis.py', 
-             'dacon/final/Model/Fundamental analysis.py',              
-             'dacon/final/Model/앙상블 v2.py']
+             'dacon/final/Model/Technical analysis.py'] 
+             #'dacon/final/Model/Fundamental analysis.py',              
+             #'dacon/final/Model/앙상블 v2.py']
 
 for filename in filenames:
     with open(filename, 'r') as file:
