@@ -9,7 +9,7 @@ from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
-ticker = 'nvda'
+ticker = 'aapl'
 
 tf.keras.backend.clear_session() # 메모리 초기화
 
@@ -106,12 +106,12 @@ from keras.regularizers import L1L2
 model = Sequential()
 
 model.add(LSTM(128, activation='tanh', input_shape=x_train[0].shape, return_sequences=True,
-               kernel_regularizer=L1L2(l1=0.01, l2=0.01), recurrent_regularizer=L1L2(l1=0.01, l2=0.01)))
+               kernel_regularizer=L1L2(l1=0.001, l2=0.001), recurrent_regularizer=L1L2(l1=0.001, l2=0.001)))
                
-
+model.add(Dropout(0.2))
 
 model.add(LSTM(64, activation='tanh'))
-
+model.add(Dropout(0.2))
 
 model.add(Dense(1, activation='linear'))
 
